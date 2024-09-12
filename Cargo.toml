@@ -14,4 +14,3 @@ tracing = { version = "0.1", features = ["log"] }
 tracing-subscriber = { version = "0.3.18" }
 clap = { version = "4", features = ["derive", "env"] }
 dotenv = { version = "0.15" }
-axum = { version = "0.7" }
