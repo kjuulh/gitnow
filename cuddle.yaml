@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=https://git.front.kjuulh.io/kjuulh/cuddle/raw/branch/main/schemas/base.json
+
+base: "git@git.front.kjuulh.io:kjuulh/cuddle-rust-cli-plan.git"
+
+vars:
+  service: "gitnow"
+  registry: kasperhermansen
+
+please:
+  project:
+    owner: kjuulh
+    repository: "gitnow"
+    branch: "main"
+  settings:
+    api_url: "https://git.front.kjuulh.io"

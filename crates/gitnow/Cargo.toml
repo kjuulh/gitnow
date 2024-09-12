@@ -1,0 +1,19 @@
+[package]
+name = "gitnow"
+edition = "2021"
+
+version.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+clap.workspace = true
+dotenv.workspace = true
+axum.workspace = true
+
+serde = { version = "1.0.197", features = ["derive"] }
+sqlx = { version = "0.7.3", features = ["runtime-tokio", "tls-rustls", "postgres", "uuid", "time"] }
+uuid = { version = "1.7.0", features = ["v4"] }
+tower-http = { version = "0.5.2", features = ["cors", "trace"] }
