@@ -1,0 +1,7 @@
+[[providers.github]]
+users = ["kjuulh"]
+organisations = ["lunarway"]
+
+[[providers.gitea]]
+users = ["kjuulh"]
+organisation = ["noorgplease"]

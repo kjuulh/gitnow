@@ -14,3 +14,5 @@ dotenv.workspace = true
 
 serde = { version = "1.0.197", features = ["derive"] }
 uuid = { version = "1.7.0", features = ["v4"] }
+async-trait = "0.1.82"
+toml = "0.8.19"
