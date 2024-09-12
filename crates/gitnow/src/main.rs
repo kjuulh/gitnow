@@ -2,7 +2,7 @@ use anyhow::Context;
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
-#[command(author, version, about, long_about = None, subcommand_required = true)]
+#[command(author, version, about, long_about = Some("Navigate git projects at the speed of thought"))]
 struct Command {
     #[command(subcommand)]
     command: Option<Commands>,
@@ -21,8 +21,9 @@ async fn main() -> anyhow::Result<()> {
     let cli = Command::parse();
     tracing::debug!("Starting cli");
 
-    if let Some(Commands::Hello {}) = cli.command {
-        println!("Hello!")
+    match cli.command {
+        Some(_) => todo!(),
+        None => todo!(),
     }
 
     Ok(())

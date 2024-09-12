@@ -13,3 +13,5 @@ please:
     branch: "main"
   settings:
     api_url: "https://git.front.kjuulh.io"
+  actions:
+    rust:
