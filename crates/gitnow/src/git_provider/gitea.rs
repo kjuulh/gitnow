@@ -23,20 +23,7 @@ impl GiteaProvider {
     ) -> anyhow::Result<Vec<super::Repository>> {
         tracing::debug!("fetching gitea repositories for user");
 
-        let mut config = gitea_rs::apis::configuration::Configuration::new();
-        config.base_path = api.into();
-        match access_token {
-            Some(GiteaAccessToken::Env { env }) => {
-                let token =
-                    std::env::var(env).context(format!("{env} didn't have a valid value"))?;
-
-                config.basic_auth = Some((user.into(), Some(token)));
-            }
-            Some(GiteaAccessToken::Direct(var)) => {
-                config.bearer_access_token = Some(var.to_owned());
-            }
-            None => {}
-        }
+        let config = self.get_config(api, access_token)?;
 
         let mut repositories = Vec::new();
         let mut page = 1;
@@ -102,20 +89,7 @@ impl GiteaProvider {
     ) -> anyhow::Result<Vec<super::Repository>> {
         tracing::debug!("fetching gitea repositories for user");
 
-        let mut config = gitea_rs::apis::configuration::Configuration::new();
-        config.base_path = api.into();
-        match access_token {
-            Some(GiteaAccessToken::Env { env }) => {
-                let token =
-                    std::env::var(env).context(format!("{env} didn't have a valid value"))?;
-
-                config.basic_auth = Some((user.into(), Some(token)));
-            }
-            Some(GiteaAccessToken::Direct(var)) => {
-                config.bearer_access_token = Some(var.to_owned());
-            }
-            None => {}
-        }
+        let config = self.get_config(api, access_token)?;
 
         let mut repositories = Vec::new();
         let mut page = 1;
@@ -169,8 +143,109 @@ impl GiteaProvider {
     pub async fn list_repositories_for_organisation(
         &self,
         organisation: &str,
+        api: &str,
+        access_token: Option<&GiteaAccessToken>,
     ) -> anyhow::Result<Vec<super::Repository>> {
-        todo!()
+        let config = self.get_config(api, access_token)?;
+
+        let mut repositories = Vec::new();
+        let mut page = 1;
+        loop {
+            let mut repos = self
+                .list_repositories_for_organisation_with_page(organisation, &config, page)
+                .await?;
+
+            if repos.is_empty() {
+                break;
+            }
+
+            repositories.append(&mut repos);
+            page += 1;
+        }
+
+        let provider = &Self::get_domain(api)?;
+
+        Ok(repositories
+            .into_iter()
+            .map(|repo| super::Repository {
+                provider: provider.into(),
+                owner: repo
+                    .owner
+                    .map(|user| user.login.unwrap_or_default())
+                    .unwrap_or_default(),
+                repo_name: repo.name.unwrap_or_default(),
+                ssh_url: repo
+                    .ssh_url
+                    .expect("ssh url to be set for gitea repository"),
+            })
+            .collect())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub async fn list_repositories_for_organisation_with_page(
+        &self,
+        organisation: &str,
+        config: &Configuration,
+        page: usize,
+    ) -> anyhow::Result<Vec<gitea_rs::models::Repository>> {
+        let repos = gitea_rs::apis::organization_api::org_list_repos(
+            config,
+            organisation,
+            Some(page as i32),
+            None,
+        )
+        .await
+        .context("failed to fetch repos for users")?;
+
+        Ok(repos)
+    }
+
+    // fn get_config_from_user(
+    //     &self,
+    //     api: &str,
+    //     user: &str,
+    //     access_token: Option<&GiteaAccessToken>,
+    // ) -> anyhow::Result<Configuration> {
+    //     let mut config = gitea_rs::apis::configuration::Configuration::new();
+    //     config.base_path = api.into();
+    //     match access_token {
+    //         Some(GiteaAccessToken::Env { env }) => {
+    //             let token =
+    //                 std::env::var(env).context(format!("{env} didn't have a valid value"))?;
+
+    //             // config.basic_auth = Some((user.into(), Some(token)));
+    //             config.basic_auth = Some(("".into(), Some(token)));
+    //         }
+    //         Some(GiteaAccessToken::Direct(var)) => {
+    //             config.basic_auth = Some(("".into(), Some(var.to_owned())));
+    //         }
+    //         None => {}
+    //     }
+
+    //     Ok(config)
+    // }
+
+    fn get_config(
+        &self,
+        api: &str,
+        access_token: Option<&GiteaAccessToken>,
+    ) -> anyhow::Result<Configuration> {
+        let mut config = gitea_rs::apis::configuration::Configuration::new();
+        config.base_path = api.into();
+        match access_token {
+            Some(GiteaAccessToken::Env { env }) => {
+                let token =
+                    std::env::var(env).context(format!("{env} didn't have a valid value"))?;
+
+                config.basic_auth = Some(("".into(), Some(token)));
+            }
+            Some(GiteaAccessToken::Direct(var)) => {
+                config.bearer_access_token = Some(var.to_owned());
+            }
+            None => {}
+        }
+
+        Ok(config)
     }
 }
 

@@ -13,6 +13,16 @@ impl ProjectsList {
     }
 
     pub async fn get_projects(&self) -> anyhow::Result<Vec<Repository>> {
+        let mut repositories = Vec::new();
+
+        repositories.extend(self.get_gitea_projects().await?);
+
+        repositories.collect_unique();
+
+        Ok(repositories)
+    }
+
+    async fn get_gitea_projects(&self) -> anyhow::Result<Vec<Repository>> {
         let gitea_provider = self.app.gitea_provider();
 
         let mut repositories = Vec::new();
@@ -40,9 +50,19 @@ impl ProjectsList {
 
                 repositories.append(&mut repos);
             }
-        }
 
-        repositories.collect_unique();
+            for gitea_org in gitea.organisations.iter() {
+                let mut repos = gitea_provider
+                    .list_repositories_for_organisation(
+                        gitea_org.into(),
+                        &gitea.url,
+                        gitea.access_token.as_ref(),
+                    )
+                    .await?;
+
+                repositories.append(&mut repos);
+            }
+        }
 
         Ok(repositories)
     }

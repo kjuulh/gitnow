@@ -69,6 +69,17 @@ impl<'a> From<&'a GiteaUser> for &'a str {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct GiteaOrganisation(String);
+impl From<GiteaOrganisation> for String {
+    fn from(value: GiteaOrganisation) -> Self {
+        value.0
+    }
+}
+
+impl<'a> From<&'a GiteaOrganisation> for &'a str {
+    fn from(value: &'a GiteaOrganisation) -> Self {
+        value.0.as_str()
+    }
+}
 
 impl Config {
     pub async fn from_file(file_path: &Path) -> anyhow::Result<Config> {

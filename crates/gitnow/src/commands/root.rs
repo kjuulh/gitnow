@@ -22,7 +22,6 @@ impl RootCommand {
 
         let repositories = self.app.projects_list().get_projects().await?;
 
-        //let github_provider = self.app.github_provider();
         for repo in &repositories {
             tracing::info!("repo: {}", repo.to_rel_path().display());
         }
