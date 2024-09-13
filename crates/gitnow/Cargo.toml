@@ -17,5 +17,5 @@ uuid = { version = "1.7.0", features = ["v4"] }
 async-trait = "0.1.82"
 toml = "0.8.19"
 
-gitea-rs = { git = "https://git.front.kjuulh.io/kjuulh/gitea-rs", ref = "main", version = "1.22.1" }
+gitea-rs = { git = "https://git.front.kjuulh.io/kjuulh/gitea-rs", version = "1.22.1" }
 url = "2.5.2"
