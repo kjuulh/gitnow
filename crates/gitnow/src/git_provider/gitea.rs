@@ -200,31 +200,6 @@ impl GiteaProvider {
         Ok(repos)
     }
 
-    // fn get_config_from_user(
-    //     &self,
-    //     api: &str,
-    //     user: &str,
-    //     access_token: Option<&GiteaAccessToken>,
-    // ) -> anyhow::Result<Configuration> {
-    //     let mut config = gitea_rs::apis::configuration::Configuration::new();
-    //     config.base_path = api.into();
-    //     match access_token {
-    //         Some(GiteaAccessToken::Env { env }) => {
-    //             let token =
-    //                 std::env::var(env).context(format!("{env} didn't have a valid value"))?;
-
-    //             // config.basic_auth = Some((user.into(), Some(token)));
-    //             config.basic_auth = Some(("".into(), Some(token)));
-    //         }
-    //         Some(GiteaAccessToken::Direct(var)) => {
-    //             config.basic_auth = Some(("".into(), Some(var.to_owned())));
-    //         }
-    //         None => {}
-    //     }
-
-    //     Ok(config)
-    // }
-
     fn get_config(
         &self,
         api: &str,
