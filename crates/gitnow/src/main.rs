@@ -9,6 +9,7 @@ mod app;
 mod commands;
 mod config;
 mod git_provider;
+mod projects_list;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = Some("Navigate git projects at the speed of thought"))]
