@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use anyhow::Context;
 use serde::{Deserialize, Serialize};
@@ -6,7 +6,21 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Config {
     #[serde(default)]
+    pub settings: Settings,
+
+    #[serde(default)]
     pub providers: Providers,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct Settings {
+    #[serde(default)]
+    cache: Cache,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct Cache {
+    location: Option<PathBuf>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize, PartialEq)]
@@ -149,10 +163,13 @@ mod test {
     fn test_can_parse_config() -> anyhow::Result<()> {
         let content = r#"
               [[providers.github]]  
+              current_user = "kjuulh"
+              access_token = "some-token"
               users = ["kjuulh"]
               organisations = ["lunarway"]
 
               [[providers.github]]  
+              access_token = { env = "something" }
               users = ["other"]
               organisations = ["org"]
 
@@ -173,7 +190,7 @@ mod test {
 
         let config = Config::from_string(content)?;
 
-        assert_eq!(
+        pretty_assertions::assert_eq!(
             Config {
                 providers: Providers {
                     github: vec![
@@ -217,6 +234,11 @@ mod test {
                             current_user: None
                         },
                     ]
+                },
+                settings: Settings {
+                    cache: Cache {
+                        location: Some(PathBuf::from("$HOME/.cache/gitnow/"))
+                    }
                 }
             },
             config
@@ -238,6 +260,9 @@ mod test {
                 providers: Providers {
                     github: vec![],
                     gitea: vec![]
+                },
+                settings: Settings {
+                    cache: Cache { location: None }
                 }
             },
             config
