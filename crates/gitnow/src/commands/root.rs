@@ -17,6 +17,7 @@ impl RootCommand {
         let repositories = match self.app.cache().get().await? {
             Some(repos) => repos,
             None => {
+                tracing::info!("finding repositories...");
                 let repositories = self.app.projects_list().get_projects().await?;
 
                 self.app.cache().update(&repositories).await?;
