@@ -120,7 +120,6 @@ impl GiteaProvider {
             .collect())
     }
 
-    #[tracing::instrument(skip(self))]
     pub async fn list_repositories_for_user_with_page(
         &self,
         user: &str,
@@ -135,7 +134,6 @@ impl GiteaProvider {
         Ok(repos)
     }
 
-    #[tracing::instrument]
     pub async fn list_repositories_for_organisation(
         &self,
         organisation: &str,
@@ -181,7 +179,6 @@ impl GiteaProvider {
             .collect())
     }
 
-    #[tracing::instrument(skip(self))]
     pub async fn list_repositories_for_organisation_with_page(
         &self,
         organisation: &str,

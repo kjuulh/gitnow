@@ -27,7 +27,7 @@ impl RootCommand {
         };
 
         for repo in &repositories {
-            tracing::info!("repo: {}", repo.to_rel_path().display());
+            //tracing::info!("repo: {}", repo.to_rel_path().display());
         }
 
         tracing::info!("amount of repos fetched {}", repositories.len());

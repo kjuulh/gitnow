@@ -18,17 +18,76 @@ pub struct Settings {
     pub cache: Cache,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct Cache {
-    pub location: PathBuf,
+    #[serde(default)]
+    pub location: CacheLocation,
+
+    #[serde(default)]
+    pub duration: CacheDuration,
 }
 
-impl Default for Cache {
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CacheLocation(PathBuf);
+
+impl From<PathBuf> for CacheLocation {
+    fn from(value: PathBuf) -> Self {
+        Self(value)
+    }
+}
+
+impl From<CacheLocation> for PathBuf {
+    fn from(value: CacheLocation) -> Self {
+        value.0
+    }
+}
+
+impl Default for CacheLocation {
     fn default() -> Self {
         let home = dirs::home_dir().unwrap_or_default();
 
-        Self {
-            location: home.join(".cache/gitnow"),
+        Self(home.join(".cache/gitnow"))
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[serde(untagged)]
+pub enum CacheDuration {
+    Enabled(bool),
+    Precise {
+        #[serde(default)]
+        days: u64,
+        #[serde(default)]
+        hours: u64,
+        #[serde(default)]
+        minutes: u64,
+    },
+}
+
+impl CacheDuration {
+    pub fn get_duration(&self) -> Option<std::time::Duration> {
+        match self {
+            CacheDuration::Enabled(true) => CacheDuration::default().get_duration(),
+            CacheDuration::Enabled(false) => None,
+            CacheDuration::Precise {
+                days,
+                hours,
+                minutes,
+            } => Some(
+                std::time::Duration::from_days(*days)
+                    + std::time::Duration::from_hours(*hours)
+                    + std::time::Duration::from_mins(*minutes),
+            ),
+        }
+    }
+}
+
+impl Default for CacheDuration {
+    fn default() -> Self {
+        Self::Precise {
+            days: 1,
+            hours: 0,
+            minutes: 0,
         }
     }
 }
@@ -174,6 +233,7 @@ mod test {
         let content = r#"
               [settings.cache]
               location = ".cache/gitnow"
+              duration = { days = 2 }
 
               [[providers.github]]  
               current_user = "kjuulh"
@@ -250,7 +310,12 @@ mod test {
                 },
                 settings: Settings {
                     cache: Cache {
-                        location: PathBuf::from(".cache/gitnow/")
+                        location: PathBuf::from(".cache/gitnow").into(),
+                        duration: CacheDuration::Precise {
+                            days: 2,
+                            hours: 0,
+                            minutes: 0
+                        }
                     }
                 }
             },

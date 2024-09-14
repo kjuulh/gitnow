@@ -52,7 +52,37 @@ impl Cache {
             return Ok(None);
         }
 
-        let file = tokio::fs::read(location).await?;
+        if let Some(cache_duration) = self.app.config.settings.cache.duration.get_duration() {
+            let metadata = tokio::fs::metadata(&location).await?;
+
+            if let Ok(file_modified_last) = metadata
+                .modified()
+                .context("failed to get modified date")
+                .inspect_err(|e| {
+                    tracing::warn!(
+                        "could not get valid metadata from file, cache will be reused: {}",
+                        e
+                    );
+                })
+                .and_then(|m| {
+                    m.elapsed()
+                        .context("failed to get elapsed from file")
+                        .inspect_err(|e| tracing::warn!("failed to get elapsed from system: {}", e))
+                })
+            {
+                tracing::trace!(
+                    cache = file_modified_last.as_secs(),
+                    expiry = cache_duration.as_secs(),
+                    "checking if cache is valid"
+                );
+                if file_modified_last > cache_duration {
+                    tracing::debug!("cache has expired");
+                    return Ok(None);
+                }
+            }
+        }
+
+        let file = tokio::fs::read(&location).await?;
         if file.is_empty() {
             tracing::debug!("cache file appears to be empty");
             return Ok(None);
@@ -87,7 +117,7 @@ pub trait CacheConfig {
 
 impl CacheConfig for Config {
     fn get_cache_location(&self) -> anyhow::Result<PathBuf> {
-        Ok(self.settings.cache.location.clone())
+        Ok(self.settings.cache.location.clone().into())
     }
 
     fn get_cache_file_location(&self) -> anyhow::Result<PathBuf> {
