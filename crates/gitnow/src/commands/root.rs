@@ -1,10 +1,4 @@
-use crate::{
-    app::App,
-    git_provider::{
-        gitea::GiteaProviderApp, github::GitHubProviderApp, GitProvider, VecRepositoryExt,
-    },
-    projects_list::ProjectsListApp,
-};
+use crate::{ app::App, projects_list::ProjectsListApp};
 
 #[derive(Debug, Clone)]
 pub struct RootCommand {

@@ -1,6 +1,4 @@
-use std::{collections::HashMap, path::PathBuf, str::FromStr};
-
-use async_trait::async_trait;
+use std::path::PathBuf;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct Repository {
@@ -29,15 +27,6 @@ impl VecRepositoryExt for Vec<Repository> {
 
         self
     }
-}
-
-#[async_trait]
-pub trait GitProvider {
-    async fn list_repositories_for_user(&self, user: &str) -> anyhow::Result<Vec<Repository>>;
-    async fn list_repositories_for_organisation(
-        &self,
-        organisation: &str,
-    ) -> anyhow::Result<Vec<Repository>>;
 }
 
 pub mod gitea;

@@ -1,6 +1,8 @@
 use crate::{
     app::App,
-    git_provider::{gitea::GiteaProviderApp, Repository, VecRepositoryExt},
+    git_provider::{
+        gitea::GiteaProviderApp, github::GitHubProviderApp, Repository, VecRepositoryExt,
+    },
 };
 
 pub struct ProjectsList {
@@ -16,6 +18,7 @@ impl ProjectsList {
         let mut repositories = Vec::new();
 
         repositories.extend(self.get_gitea_projects().await?);
+        repositories.extend(self.get_github_projects().await?);
 
         repositories.collect_unique();
 
@@ -27,13 +30,9 @@ impl ProjectsList {
 
         let mut repositories = Vec::new();
         for gitea in self.app.config.providers.gitea.iter() {
-            if let Some(user) = &gitea.current_user {
+            if let Some(_user) = &gitea.current_user {
                 let mut repos = gitea_provider
-                    .list_repositories_for_current_user(
-                        user,
-                        &gitea.url,
-                        gitea.access_token.as_ref(),
-                    )
+                    .list_repositories_for_current_user(&gitea.url, gitea.access_token.as_ref())
                     .await?;
 
                 repositories.append(&mut repos);
@@ -57,6 +56,47 @@ impl ProjectsList {
                         gitea_org.into(),
                         &gitea.url,
                         gitea.access_token.as_ref(),
+                    )
+                    .await?;
+
+                repositories.append(&mut repos);
+            }
+        }
+
+        Ok(repositories)
+    }
+
+    async fn get_github_projects(&self) -> anyhow::Result<Vec<Repository>> {
+        let github_provider = self.app.github_provider();
+
+        let mut repositories = Vec::new();
+        for github in self.app.config.providers.github.iter() {
+            if let Some(_user) = &github.current_user {
+                let mut repos = github_provider
+                    .list_repositories_for_current_user(github.url.as_ref(), &github.access_token)
+                    .await?;
+
+                repositories.append(&mut repos);
+            }
+
+            for github_user in github.users.iter() {
+                let mut repos = github_provider
+                    .list_repositories_for_user(
+                        github_user.into(),
+                        github.url.as_ref(),
+                        &github.access_token,
+                    )
+                    .await?;
+
+                repositories.append(&mut repos);
+            }
+
+            for github_org in github.organisations.iter() {
+                let mut repos = github_provider
+                    .list_repositories_for_organisation(
+                        github_org.into(),
+                        github.url.as_ref(),
+                        &github.access_token,
                     )
                     .await?;
 

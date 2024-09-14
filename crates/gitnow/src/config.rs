@@ -20,6 +20,14 @@ pub struct Providers {
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct GitHub {
     #[serde(default)]
+    pub url: Option<String>,
+
+    pub access_token: GitHubAccessToken,
+
+    #[serde(default)]
+    pub current_user: Option<String>,
+
+    #[serde(default)]
     pub users: Vec<GitHubUser>,
     #[serde(default)]
     pub organisations: Vec<GitHubOrganisation>,
@@ -28,12 +36,38 @@ pub struct GitHub {
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct GitHubUser(String);
 
+impl From<GitHubUser> for String {
+    fn from(value: GitHubUser) -> Self {
+        value.0
+    }
+}
+
+impl<'a> From<&'a GitHubUser> for &'a str {
+    fn from(value: &'a GitHubUser) -> Self {
+        value.0.as_str()
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct GitHubOrganisation(String);
+
+impl From<GitHubOrganisation> for String {
+    fn from(value: GitHubOrganisation) -> Self {
+        value.0
+    }
+}
+
+impl<'a> From<&'a GitHubOrganisation> for &'a str {
+    fn from(value: &'a GitHubOrganisation) -> Self {
+        value.0.as_str()
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Gitea {
     pub url: String,
+
+    #[serde(default)]
     pub access_token: Option<GiteaAccessToken>,
 
     #[serde(default)]
@@ -48,6 +82,13 @@ pub struct Gitea {
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 #[serde(untagged)]
 pub enum GiteaAccessToken {
+    Direct(String),
+    Env { env: String },
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[serde(untagged)]
+pub enum GitHubAccessToken {
     Direct(String),
     Env { env: String },
 }
@@ -138,11 +179,19 @@ mod test {
                     github: vec![
                         GitHub {
                             users: vec![GitHubUser("kjuulh".into())],
-                            organisations: vec![GitHubOrganisation("lunarway".into())]
+                            organisations: vec![GitHubOrganisation("lunarway".into())],
+                            url: None,
+                            access_token: GitHubAccessToken::Direct("some-token".into()),
+                            current_user: Some("kjuulh".into())
                         },
                         GitHub {
                             users: vec![GitHubUser("other".into())],
-                            organisations: vec![GitHubOrganisation("org".into())]
+                            organisations: vec![GitHubOrganisation("org".into())],
+                            url: None,
+                            access_token: GitHubAccessToken::Env {
+                                env: "something".into()
+                            },
+                            current_user: None
                         }
                     ],
                     gitea: vec![

@@ -1,11 +1,12 @@
 use anyhow::Context;
-use gitea_rs::apis::configuration::{ApiKey, Configuration};
+use gitea_rs::apis::configuration::Configuration;
 use url::Url;
 
 use crate::{app::App, config::GiteaAccessToken};
 
 #[derive(Debug)]
 pub struct GiteaProvider {
+    #[allow(dead_code)]
     app: &'static App,
 }
 
@@ -14,14 +15,12 @@ impl GiteaProvider {
         GiteaProvider { app }
     }
 
-    #[tracing::instrument(skip(self))]
     pub async fn list_repositories_for_current_user(
         &self,
-        user: &str,
         api: &str,
         access_token: Option<&GiteaAccessToken>,
     ) -> anyhow::Result<Vec<super::Repository>> {
-        tracing::debug!("fetching gitea repositories for user");
+        tracing::debug!("fetching gitea repositories for current user");
 
         let config = self.get_config(api, access_token)?;
 
@@ -29,7 +28,7 @@ impl GiteaProvider {
         let mut page = 1;
         loop {
             let mut repos = self
-                .list_repositories_for_current_user_with_page(user, &config, page)
+                .list_repositories_for_current_user_with_page(&config, page)
                 .await?;
 
             if repos.is_empty() {
@@ -65,10 +64,8 @@ impl GiteaProvider {
         Ok(provider.into())
     }
 
-    #[tracing::instrument(skip(self))]
     async fn list_repositories_for_current_user_with_page(
         &self,
-        user: &str,
         config: &Configuration,
         page: usize,
     ) -> anyhow::Result<Vec<gitea_rs::models::Repository>> {
@@ -80,14 +77,13 @@ impl GiteaProvider {
         Ok(repos)
     }
 
-    #[tracing::instrument(skip(self))]
     pub async fn list_repositories_for_user(
         &self,
         user: &str,
         api: &str,
         access_token: Option<&GiteaAccessToken>,
     ) -> anyhow::Result<Vec<super::Repository>> {
-        tracing::debug!("fetching gitea repositories for user");
+        tracing::debug!(user = user, "fetching gitea repositories for user");
 
         let config = self.get_config(api, access_token)?;
 
@@ -146,6 +142,10 @@ impl GiteaProvider {
         api: &str,
         access_token: Option<&GiteaAccessToken>,
     ) -> anyhow::Result<Vec<super::Repository>> {
+        tracing::debug!(
+            organisation = organisation,
+            "fetching gitea repositories for organisation"
+        );
         let config = self.get_config(api, access_token)?;
 
         let mut repositories = Vec::new();
