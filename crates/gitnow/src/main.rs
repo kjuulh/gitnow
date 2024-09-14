@@ -6,6 +6,8 @@ use commands::root::RootCommand;
 use config::Config;
 
 mod app;
+mod cache;
+mod cache_codec;
 mod commands;
 mod config;
 mod git_provider;

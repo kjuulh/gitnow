@@ -1,0 +1,10 @@
+version: v2
+managed:
+  enabled: true
+plugins:
+  # dependencies
+- remote: buf.build/community/neoeinstein-prost
+  out: crates/gitnow/src/gen
+  
+inputs:
+  - directory: crates/gitnow/proto

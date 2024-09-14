@@ -1,4 +1,4 @@
-use crate::{ app::App, projects_list::ProjectsListApp};
+use crate::{app::App, cache::CacheApp, projects_list::ProjectsListApp};
 
 #[derive(Debug, Clone)]
 pub struct RootCommand {
@@ -14,7 +14,16 @@ impl RootCommand {
     pub async fn execute(&mut self) -> anyhow::Result<()> {
         tracing::debug!("executing");
 
-        let repositories = self.app.projects_list().get_projects().await?;
+        let repositories = match self.app.cache().get().await? {
+            Some(repos) => repos,
+            None => {
+                let repositories = self.app.projects_list().get_projects().await?;
+
+                self.app.cache().update(&repositories).await?;
+
+                repositories
+            }
+        };
 
         for repo in &repositories {
             tracing::info!("repo: {}", repo.to_rel_path().display());

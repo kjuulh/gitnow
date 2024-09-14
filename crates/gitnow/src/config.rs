@@ -15,12 +15,22 @@ pub struct Config {
 #[derive(Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct Settings {
     #[serde(default)]
-    cache: Cache,
+    pub cache: Cache,
 }
 
-#[derive(Debug, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Cache {
-    location: Option<PathBuf>,
+    pub location: PathBuf,
+}
+
+impl Default for Cache {
+    fn default() -> Self {
+        let home = dirs::home_dir().unwrap_or_default();
+
+        Self {
+            location: home.join(".cache/gitnow"),
+        }
+    }
 }
 
 #[derive(Debug, Default, Serialize, Deserialize, PartialEq)]
@@ -162,6 +172,9 @@ mod test {
     #[test]
     fn test_can_parse_config() -> anyhow::Result<()> {
         let content = r#"
+              [settings.cache]
+              location = ".cache/gitnow"
+
               [[providers.github]]  
               current_user = "kjuulh"
               access_token = "some-token"
@@ -237,7 +250,7 @@ mod test {
                 },
                 settings: Settings {
                     cache: Cache {
-                        location: Some(PathBuf::from("$HOME/.cache/gitnow/"))
+                        location: PathBuf::from(".cache/gitnow/")
                     }
                 }
             },
@@ -262,7 +275,7 @@ mod test {
                     gitea: vec![]
                 },
                 settings: Settings {
-                    cache: Cache { location: None }
+                    cache: Cache::default()
                 }
             },
             config
