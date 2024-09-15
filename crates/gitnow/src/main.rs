@@ -12,6 +12,7 @@ mod cache;
 mod cache_codec;
 mod commands;
 mod config;
+mod fuzzy_matcher;
 mod git_provider;
 mod projects_list;
 

@@ -1,6 +1,8 @@
 use nucleo_matcher::{pattern::Pattern, Matcher, Utf32Str};
 
-use crate::{app::App, cache::CacheApp, projects_list::ProjectsListApp};
+use crate::{
+    app::App, cache::CacheApp, fuzzy_matcher::FuzzyMatcherApp, projects_list::ProjectsListApp,
+};
 
 #[derive(Debug, Clone)]
 pub struct RootCommand {
@@ -26,33 +28,38 @@ impl RootCommand {
                 repositories
             }
         };
-
-        let haystack = repositories
-            .iter()
-            .map(|r| r.to_rel_path().display().to_string());
-
         let needle = match search {
             Some(needle) => needle.into(),
             None => todo!(),
         };
 
-        let pattern = Pattern::new(
-            &needle,
-            nucleo_matcher::pattern::CaseMatching::Ignore,
-            nucleo_matcher::pattern::Normalization::Smart,
-            nucleo_matcher::pattern::AtomKind::Fuzzy,
-        );
-        let mut matcher = Matcher::new(nucleo_matcher::Config::DEFAULT);
-        let res = pattern.match_list(haystack, &mut matcher);
+        let haystack = repositories
+            .iter()
+            .map(|r| r.to_rel_path().display().to_string())
+            .collect::<Vec<_>>();
+
+        let haystack = haystack.as_str_vec();
+
+        let res = self.app.fuzzy_matcher().match_pattern(&needle, &haystack);
 
         let res = res.iter().take(10).rev().collect::<Vec<_>>();
 
-        for (repo, _score) in res {
+        for repo in res {
             tracing::debug!("repo: {:?}", repo);
         }
 
         tracing::info!("amount of repos fetched {}", repositories.len());
 
         Ok(())
+    }
+}
+
+trait StringExt {
+    fn as_str_vec<'a>(&'a self) -> Vec<&'a str>;
+}
+
+impl StringExt for Vec<String> {
+    fn as_str_vec<'a>(&'a self) -> Vec<&'a str> {
+        self.iter().map(|r| r.as_ref()).collect()
     }
 }
