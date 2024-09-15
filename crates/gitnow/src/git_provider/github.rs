@@ -1,10 +1,4 @@
-use anyhow::Context;
-use octocrab::{
-    auth::Auth,
-    models::{hooks::Config, Repository},
-    params::repos::Sort,
-    NoSvc, Octocrab, Page,
-};
+use octocrab::{models::Repository, params::repos::Sort, Octocrab, Page};
 
 use crate::{app::App, config::GitHubAccessToken};
 
@@ -159,7 +153,7 @@ impl GitHubProvider {
 
     fn get_client(
         &self,
-        url: Option<&String>,
+        _url: Option<&String>,
         access_token: &GitHubAccessToken,
     ) -> anyhow::Result<Octocrab> {
         let client = octocrab::Octocrab::builder()

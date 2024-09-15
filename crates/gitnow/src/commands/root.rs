@@ -1,5 +1,3 @@
-use nucleo_matcher::{pattern::Pattern, Matcher, Utf32Str};
-
 use crate::{
     app::App, cache::CacheApp, fuzzy_matcher::FuzzyMatcherApp, projects_list::ProjectsListApp,
 };
@@ -55,11 +53,11 @@ impl RootCommand {
 }
 
 trait StringExt {
-    fn as_str_vec<'a>(&'a self) -> Vec<&'a str>;
+    fn as_str_vec(&self) -> Vec<&str>;
 }
 
 impl StringExt for Vec<String> {
-    fn as_str_vec<'a>(&'a self) -> Vec<&'a str> {
+    fn as_str_vec(&self) -> Vec<&str> {
         self.iter().map(|r| r.as_ref()).collect()
     }
 }

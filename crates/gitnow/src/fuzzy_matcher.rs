@@ -11,7 +11,7 @@ impl FuzzyMatcher {
 
     pub fn match_pattern<'a>(&self, pattern: &'a str, items: &'a [&'a str]) -> Vec<&'a str> {
         let pat = Pattern::new(
-            &pattern,
+            pattern,
             nucleo_matcher::pattern::CaseMatching::Ignore,
             nucleo_matcher::pattern::Normalization::Smart,
             nucleo_matcher::pattern::AtomKind::Fuzzy,
@@ -19,7 +19,7 @@ impl FuzzyMatcher {
         let mut matcher = Matcher::new(nucleo_matcher::Config::DEFAULT);
         let res = pat.match_list(items, &mut matcher);
 
-        res.into_iter().map(|((item, _))| *item).collect::<Vec<_>>()
+        res.into_iter().map(|(item, _)| *item).collect::<Vec<_>>()
     }
 }
 
