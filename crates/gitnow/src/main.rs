@@ -20,6 +20,9 @@ mod projects_list;
 struct Command {
     #[command(subcommand)]
     command: Option<Commands>,
+
+    #[arg()]
+    search: Option<String>,
 }
 
 #[derive(Subcommand)]
@@ -51,7 +54,7 @@ async fn main() -> anyhow::Result<()> {
     match cli.command {
         Some(_) => todo!(),
         None => {
-            RootCommand::new(app).execute().await?;
+            RootCommand::new(app).execute(cli.search.as_ref()).await?;
         }
     }
 

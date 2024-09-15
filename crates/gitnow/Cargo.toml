@@ -24,6 +24,7 @@ dirs = "5.0.1"
 prost = "0.13.2"
 prost-types = "0.13.2"
 bytes = "1.7.1"
+nucleo-matcher = "0.3.1"
 
 [dev-dependencies]
 pretty_assertions = "1.4.0"
