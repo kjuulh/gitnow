@@ -1,5 +1,11 @@
+use std::collections::BTreeMap;
+
 use crate::{
-    app::App, cache::CacheApp, fuzzy_matcher::FuzzyMatcherApp, projects_list::ProjectsListApp,
+    app::App,
+    cache::CacheApp,
+    fuzzy_matcher::{FuzzyMatcher, FuzzyMatcherApp},
+    git_provider::Repository,
+    projects_list::ProjectsListApp,
 };
 
 #[derive(Debug, Clone)]
@@ -31,16 +37,11 @@ impl RootCommand {
             None => todo!(),
         };
 
-        let haystack = repositories
-            .iter()
-            .map(|r| r.to_rel_path().display().to_string())
-            .collect::<Vec<_>>();
-
-        let haystack = haystack.as_str_vec();
-
-        let res = self.app.fuzzy_matcher().match_pattern(&needle, &haystack);
-
-        let res = res.iter().take(10).rev().collect::<Vec<_>>();
+        let matched_repos = self
+            .app
+            .fuzzy_matcher()
+            .match_repositories(&needle, &repositories);
+        let res = matched_repos.iter().take(10).rev().collect::<Vec<_>>();
 
         for repo in res {
             tracing::debug!("repo: {:?}", repo);
@@ -59,5 +60,35 @@ trait StringExt {
 impl StringExt for Vec<String> {
     fn as_str_vec(&self) -> Vec<&str> {
         self.iter().map(|r| r.as_ref()).collect()
+    }
+}
+
+impl StringExt for Vec<&String> {
+    fn as_str_vec(&self) -> Vec<&str> {
+        self.iter().map(|r| r.as_ref()).collect()
+    }
+}
+
+trait RepositoryMatcher {
+    fn match_repositories(&self, pattern: &str, repositories: &[Repository]) -> Vec<Repository>;
+}
+
+impl RepositoryMatcher for FuzzyMatcher {
+    fn match_repositories(&self, pattern: &str, repositories: &[Repository]) -> Vec<Repository> {
+        let haystack = repositories
+            .iter()
+            .map(|r| (r.to_rel_path().display().to_string(), r))
+            .collect::<BTreeMap<_, _>>();
+        let haystack_keys = haystack.keys().collect::<Vec<_>>();
+        let haystack_keys = haystack_keys.as_str_vec();
+
+        let res = self.match_pattern(pattern, &haystack_keys);
+
+        let matched_repos = res
+            .into_iter()
+            .filter_map(|repo_key| haystack.get(repo_key).map(|r| (*r).to_owned()))
+            .collect::<Vec<_>>();
+
+        matched_repos
     }
 }
