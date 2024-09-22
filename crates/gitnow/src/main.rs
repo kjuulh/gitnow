@@ -17,6 +17,7 @@ mod git_clone;
 mod git_provider;
 mod interactive;
 mod projects_list;
+mod shell;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = Some("Navigate git projects at the speed of thought"))]
@@ -32,6 +33,12 @@ struct Command {
 
     #[arg(long = "no-clone", default_value = "false")]
     no_clone: bool,
+
+    #[arg(long = "no-shell", default_value = "false")]
+    no_shell: bool,
+
+    #[arg(long = "force-refresh", default_value = "false")]
+    force_refresh: bool,
 }
 
 #[derive(Subcommand)]
@@ -64,7 +71,13 @@ async fn main() -> anyhow::Result<()> {
         Some(_) => todo!(),
         None => {
             RootCommand::new(app)
-                .execute(cli.search.as_ref(), !cli.no_cache, !cli.no_clone)
+                .execute(
+                    cli.search.as_ref(),
+                    !cli.no_cache,
+                    !cli.no_clone,
+                    !cli.no_shell,
+                    cli.force_refresh,
+                )
                 .await?;
         }
     }

@@ -9,7 +9,11 @@ impl GitClone {
         Self { app }
     }
 
-    pub async fn clone_repo(&self, repository: &Repository) -> anyhow::Result<()> {
+    pub async fn clone_repo(
+        &self,
+        repository: &Repository,
+        force_refresh: bool,
+    ) -> anyhow::Result<()> {
         let project_path = self
             .app
             .config
@@ -17,6 +21,10 @@ impl GitClone {
             .projects
             .directory
             .join(repository.to_rel_path());
+
+        if force_refresh {
+            tokio::fs::remove_dir_all(&project_path).await?;
+        }
 
         if project_path.exists() {
             tracing::info!(

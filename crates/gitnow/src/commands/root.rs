@@ -8,6 +8,7 @@ use crate::{
     git_provider::Repository,
     interactive::InteractiveApp,
     projects_list::ProjectsListApp,
+    shell::ShellApp,
 };
 
 #[derive(Debug, Clone)]
@@ -25,6 +26,8 @@ impl RootCommand {
         search: Option<impl Into<String>>,
         cache: bool,
         clone: bool,
+        shell: bool,
+        force_refresh: bool,
     ) -> anyhow::Result<()> {
         tracing::debug!("executing");
 
@@ -72,7 +75,28 @@ impl RootCommand {
         };
 
         if clone {
-            self.app.git_clone().clone_repo(&repo).await?;
+            self.app
+                .git_clone()
+                .clone_repo(&repo, force_refresh)
+                .await?;
+        } else {
+            tracing::info!("skipping clone for repo: {}", &repo.to_rel_path().display());
+        }
+
+        if shell {
+            self.app.shell().spawn_shell(&repo).await?;
+        } else {
+            tracing::info!("skipping shell for repo: {}", &repo.to_rel_path().display());
+            println!(
+                "{}",
+                self.app
+                    .config
+                    .settings
+                    .projects
+                    .directory
+                    .join(repo.to_rel_path())
+                    .display()
+            );
         }
 
         Ok(())
