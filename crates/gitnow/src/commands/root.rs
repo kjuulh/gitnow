@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 use crate::{
     app::App,
     cache::CacheApp,
+    components::inline_command::InlineCommand,
     fuzzy_matcher::{FuzzyMatcher, FuzzyMatcherApp},
     git_clone::GitCloneApp,
     git_provider::Repository,
@@ -75,9 +76,17 @@ impl RootCommand {
         };
 
         if clone {
-            self.app
-                .git_clone()
-                .clone_repo(&repo, force_refresh)
+            let git_clone = self.app.git_clone();
+
+            let mut wrap_cmd =
+                InlineCommand::new(format!("cloning: {}", repo.to_rel_path().display()));
+            let repo = repo.clone();
+            wrap_cmd
+                .execute(move || async move {
+                    git_clone.clone_repo(&repo, force_refresh).await?;
+
+                    Ok(())
+                })
                 .await?;
         } else {
             tracing::info!("skipping clone for repo: {}", &repo.to_rel_path().display());

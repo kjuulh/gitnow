@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use anyhow::Context;
 use clap::{Parser, Subcommand};
 use commands::root::RootCommand;
+use components::inline_command::InlineCommand;
 use config::Config;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::EnvFilter;
@@ -13,6 +14,7 @@ mod app;
 mod cache;
 mod cache_codec;
 mod commands;
+mod components;
 mod config;
 mod fuzzy_matcher;
 mod git_clone;
@@ -56,7 +58,7 @@ async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(
             EnvFilter::builder()
-                .with_default_directive(LevelFilter::WARN.into())
+                .with_default_directive(LevelFilter::ERROR.into())
                 .from_env_lossy(),
         )
         .init();
