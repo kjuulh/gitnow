@@ -25,6 +25,9 @@ struct Command {
 
     #[arg()]
     search: Option<String>,
+
+    #[arg(long = "no-cache", default_value = "false")]
+    no_cache: bool,
 }
 
 #[derive(Subcommand)]
@@ -56,7 +59,9 @@ async fn main() -> anyhow::Result<()> {
     match cli.command {
         Some(_) => todo!(),
         None => {
-            RootCommand::new(app).execute(cli.search.as_ref()).await?;
+            RootCommand::new(app)
+                .execute(cli.search.as_ref(), !cli.no_cache)
+                .await?;
         }
     }
 

@@ -2,6 +2,8 @@
 
 Git Now is a utility for easily navigating git projects from common upstream providers. Search, Download, and Enter projects as quickly as you can type.
 
+![example gif](./assets/gifs/example.gif)
+
 How many steps do you normally do to download a project?
 
 1. Navigate to github.com

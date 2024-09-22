@@ -19,19 +19,27 @@ impl RootCommand {
         Self { app }
     }
 
-    pub async fn execute(&mut self, search: Option<impl Into<String>>) -> anyhow::Result<()> {
+    pub async fn execute(
+        &mut self,
+        search: Option<impl Into<String>>,
+        cache: bool,
+    ) -> anyhow::Result<()> {
         tracing::debug!("executing");
 
-        let repositories = match self.app.cache().get().await? {
-            Some(repos) => repos,
-            None => {
-                tracing::info!("finding repositories...");
-                let repositories = self.app.projects_list().get_projects().await?;
+        let repositories = if cache {
+            match self.app.cache().get().await? {
+                Some(repos) => repos,
+                None => {
+                    tracing::info!("finding repositories...");
+                    let repositories = self.app.projects_list().get_projects().await?;
 
-                self.app.cache().update(&repositories).await?;
+                    self.app.cache().update(&repositories).await?;
 
-                repositories
+                    repositories
+                }
             }
+        } else {
+            self.app.projects_list().get_projects().await?
         };
         match search {
             Some(needle) => {
