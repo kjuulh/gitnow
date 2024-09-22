@@ -13,6 +13,7 @@ mod cache_codec;
 mod commands;
 mod config;
 mod fuzzy_matcher;
+mod git_clone;
 mod git_provider;
 mod interactive;
 mod projects_list;
@@ -28,6 +29,9 @@ struct Command {
 
     #[arg(long = "no-cache", default_value = "false")]
     no_cache: bool,
+
+    #[arg(long = "no-clone", default_value = "false")]
+    no_clone: bool,
 }
 
 #[derive(Subcommand)]
@@ -60,7 +64,7 @@ async fn main() -> anyhow::Result<()> {
         Some(_) => todo!(),
         None => {
             RootCommand::new(app)
-                .execute(cli.search.as_ref(), !cli.no_cache)
+                .execute(cli.search.as_ref(), !cli.no_cache, !cli.no_clone)
                 .await?;
         }
     }

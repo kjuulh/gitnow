@@ -15,7 +15,46 @@ pub struct Config {
 #[derive(Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct Settings {
     #[serde(default)]
+    pub projects: Projects,
+
+    #[serde(default)]
     pub cache: Cache,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct Projects {
+    pub directory: ProjectLocation,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProjectLocation(PathBuf);
+
+impl From<PathBuf> for ProjectLocation {
+    fn from(value: PathBuf) -> Self {
+        Self(value)
+    }
+}
+
+impl From<ProjectLocation> for PathBuf {
+    fn from(value: ProjectLocation) -> Self {
+        value.0
+    }
+}
+
+impl Default for ProjectLocation {
+    fn default() -> Self {
+        let home = dirs::home_dir().unwrap_or_default();
+
+        Self(home.join("git"))
+    }
+}
+
+impl std::ops::Deref for ProjectLocation {
+    type Target = PathBuf;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 #[derive(Debug, Default, Serialize, Deserialize, PartialEq)]
@@ -231,6 +270,9 @@ mod test {
     #[test]
     fn test_can_parse_config() -> anyhow::Result<()> {
         let content = r#"
+              [settings]
+              projects = { directory = "git" }
+        
               [settings.cache]
               location = ".cache/gitnow"
               duration = { days = 2 }
@@ -316,6 +358,9 @@ mod test {
                             hours: 0,
                             minutes: 0
                         }
+                    },
+                    projects: Projects {
+                        directory: PathBuf::from("git").into()
                     }
                 }
             },
@@ -340,7 +385,8 @@ mod test {
                     gitea: vec![]
                 },
                 settings: Settings {
-                    cache: Cache::default()
+                    cache: Cache::default(),
+                    projects: Projects::default()
                 }
             },
             config

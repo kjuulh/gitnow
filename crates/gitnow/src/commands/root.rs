@@ -4,6 +4,7 @@ use crate::{
     app::App,
     cache::CacheApp,
     fuzzy_matcher::{FuzzyMatcher, FuzzyMatcherApp},
+    git_clone::GitCloneApp,
     git_provider::Repository,
     interactive::InteractiveApp,
     projects_list::ProjectsListApp,
@@ -23,6 +24,7 @@ impl RootCommand {
         &mut self,
         search: Option<impl Into<String>>,
         cache: bool,
+        clone: bool,
     ) -> anyhow::Result<()> {
         tracing::debug!("executing");
 
@@ -41,7 +43,8 @@ impl RootCommand {
         } else {
             self.app.projects_list().get_projects().await?
         };
-        match search {
+
+        let repo = match search {
             Some(needle) => {
                 let matched_repos = self
                     .app
@@ -51,7 +54,9 @@ impl RootCommand {
                 let repo = matched_repos
                     .first()
                     .ok_or(anyhow::anyhow!("failed to find repository"))?;
-                tracing::info!("selected repo: {}", repo.to_rel_path().display());
+                tracing::debug!("selected repo: {}", repo.to_rel_path().display());
+
+                repo.to_owned()
             }
             None => {
                 let repo = self
@@ -60,8 +65,14 @@ impl RootCommand {
                     .interactive_search(&repositories)?
                     .ok_or(anyhow::anyhow!("failed to find a repository"))?;
 
-                tracing::info!("selected repo: {}", repo.to_rel_path().display());
+                tracing::debug!("selected repo: {}", repo.to_rel_path().display());
+
+                repo
             }
+        };
+
+        if clone {
+            self.app.git_clone().clone_repo(&repo).await?;
         }
 
         Ok(())
