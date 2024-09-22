@@ -1,5 +1,5 @@
 Output "target/vhs/example.gif"
-Set Theme "Aardvark Blue"
+Set Theme "Dracula"
 Set Width 1200
 Set Height 1000
 Hide
