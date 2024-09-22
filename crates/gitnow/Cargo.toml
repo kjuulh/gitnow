@@ -25,6 +25,7 @@ prost = "0.13.2"
 prost-types = "0.13.2"
 bytes = "1.7.1"
 nucleo-matcher = "0.3.1"
+ratatui = "0.28.1"
 
 [dev-dependencies]
 pretty_assertions = "1.4.0"

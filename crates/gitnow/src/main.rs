@@ -14,6 +14,7 @@ mod commands;
 mod config;
 mod fuzzy_matcher;
 mod git_provider;
+mod interactive;
 mod projects_list;
 
 #[derive(Parser)]

@@ -5,6 +5,7 @@ use crate::{
     cache::CacheApp,
     fuzzy_matcher::{FuzzyMatcher, FuzzyMatcherApp},
     git_provider::Repository,
+    interactive::InteractiveApp,
     projects_list::ProjectsListApp,
 };
 
@@ -32,22 +33,28 @@ impl RootCommand {
                 repositories
             }
         };
-        let needle = match search {
-            Some(needle) => needle.into(),
-            None => todo!(),
-        };
+        match search {
+            Some(needle) => {
+                let matched_repos = self
+                    .app
+                    .fuzzy_matcher()
+                    .match_repositories(&needle.into(), &repositories);
 
-        let matched_repos = self
-            .app
-            .fuzzy_matcher()
-            .match_repositories(&needle, &repositories);
-        let res = matched_repos.iter().take(10).rev().collect::<Vec<_>>();
+                let repo = matched_repos
+                    .first()
+                    .ok_or(anyhow::anyhow!("failed to find repository"))?;
+                tracing::info!("selected repo: {}", repo.to_rel_path().display());
+            }
+            None => {
+                let repo = self
+                    .app
+                    .interactive()
+                    .interactive_search(&repositories)?
+                    .ok_or(anyhow::anyhow!("failed to find a repository"))?;
 
-        for repo in res {
-            tracing::debug!("repo: {:?}", repo);
+                tracing::info!("selected repo: {}", repo.to_rel_path().display());
+            }
         }
-
-        tracing::info!("amount of repos fetched {}", repositories.len());
 
         Ok(())
     }
@@ -69,7 +76,7 @@ impl StringExt for Vec<&String> {
     }
 }
 
-trait RepositoryMatcher {
+pub trait RepositoryMatcher {
     fn match_repositories(&self, pattern: &str, repositories: &[Repository]) -> Vec<Repository>;
 }
 
