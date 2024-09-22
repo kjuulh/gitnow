@@ -3,9 +3,6 @@ Set Theme "Dracula"
 Set Width 1200
 Set Height 1000
 Hide
-Type "cargo build --features example && clear"
-Enter
-Sleep 1s
 Type "./target/debug/gitnow --no-cache"
 Enter
 Show
