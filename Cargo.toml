@@ -11,6 +11,6 @@ gitnow = { path = "crates/gitnow" }
 anyhow = { version = "1" }
 tokio = { version = "1", features = ["full"] }
 tracing = { version = "0.1", features = ["log"] }
-tracing-subscriber = { version = "0.3.18" }
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 clap = { version = "4", features = ["derive", "env"] }
 dotenv = { version = "0.15" }

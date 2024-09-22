@@ -6,6 +6,8 @@ use anyhow::Context;
 use clap::{Parser, Subcommand};
 use commands::root::RootCommand;
 use config::Config;
+use tracing::level_filters::LevelFilter;
+use tracing_subscriber::EnvFilter;
 
 mod app;
 mod cache;
@@ -51,7 +53,13 @@ const DEFAULT_CONFIG_PATH: &str = ".config/gitnow/gitnow.toml";
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenv::dotenv().ok();
-    tracing_subscriber::fmt::init();
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            EnvFilter::builder()
+                .with_default_directive(LevelFilter::WARN.into())
+                .from_env_lossy(),
+        )
+        .init();
 
     let home =
         std::env::var("HOME").context("HOME was not found, are you using a proper shell?")?;
