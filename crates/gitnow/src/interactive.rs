@@ -38,7 +38,7 @@ mod app {
         crossterm::event::{self, Event, KeyCode},
         layout::{Constraint, Layout},
         style::{Style, Stylize},
-        text::{Line, Span, Text},
+        text::{Line, Span},
         widgets::{ListItem, ListState, Paragraph, StatefulWidget},
         DefaultTerminal, Frame,
     };
@@ -67,7 +67,7 @@ mod app {
         }
 
         fn update_matched_repos(&mut self) {
-            let mut res = self
+            let res = self
                 .app
                 .fuzzy_matcher()
                 .match_repositories(&self.current_search, self.repositories);
@@ -102,8 +102,7 @@ mod app {
                         KeyCode::Esc => return Ok(None),
                         KeyCode::Enter => {
                             if let Some(selected) = self.list.selected() {
-                                if let Some(repo) = self.matched_repos.iter().nth(selected).cloned()
-                                {
+                                if let Some(repo) = self.matched_repos.get(selected).cloned() {
                                     return Ok(Some(repo));
                                 }
                             }
