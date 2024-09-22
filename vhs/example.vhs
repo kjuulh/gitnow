@@ -3,7 +3,7 @@ Set Theme "Dracula"
 Set Width 1200
 Set Height 1000
 Hide
-Type "cargo run --features example -- --no-cache"
+Type "cargo run --features example -- --no-cache && clear"
 Enter
 Sleep 1s
 Show
