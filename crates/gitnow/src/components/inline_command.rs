@@ -1,7 +1,14 @@
-use std::{io::Write, time::Duration};
+use std::{
+    io::{stderr, Write},
+    time::Duration,
+};
 
 use anyhow::Context;
-use crossterm::event::{EventStream, KeyCode, KeyEventKind};
+use crossterm::{
+    event::{EventStream, KeyCode, KeyEventKind},
+    terminal::{enable_raw_mode, EnterAlternateScreen},
+    ExecutableCommand,
+};
 use futures::{FutureExt, StreamExt};
 use ratatui::{
     crossterm,
@@ -72,6 +79,8 @@ impl InlineCommand {
         }
 
         drop(guard);
+
+        println!();
 
         Ok(())
     }

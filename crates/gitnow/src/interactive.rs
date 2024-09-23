@@ -1,4 +1,11 @@
+use std::io::stderr;
+
 use app::App;
+use crossterm::{
+    terminal::{enable_raw_mode, EnterAlternateScreen},
+    ExecutableCommand,
+};
+use ratatui::{prelude::CrosstermBackend, Terminal};
 
 use crate::git_provider::Repository;
 
@@ -15,8 +22,14 @@ impl Interactive {
         &mut self,
         repositories: &[Repository],
     ) -> anyhow::Result<Option<Repository>> {
-        let terminal = ratatui::init();
+        let backend = CrosstermBackend::new(std::io::stderr());
+        let terminal = Terminal::new(backend)?;
+
+        enable_raw_mode()?;
+        stderr().execute(EnterAlternateScreen)?;
+
         let app_result = App::new(self.app, repositories).run(terminal);
+
         ratatui::restore();
 
         app_result
@@ -37,10 +50,11 @@ mod app {
     use ratatui::{
         crossterm::event::{self, Event, KeyCode},
         layout::{Constraint, Layout},
+        prelude::CrosstermBackend,
         style::{Style, Stylize},
         text::{Line, Span},
         widgets::{ListItem, ListState, Paragraph, StatefulWidget},
-        DefaultTerminal, Frame,
+        Frame, Terminal,
     };
 
     use crate::{
@@ -81,7 +95,10 @@ mod app {
             }
         }
 
-        pub fn run(mut self, mut terminal: DefaultTerminal) -> anyhow::Result<Option<Repository>> {
+        pub fn run<T: std::io::Write>(
+            mut self,
+            mut terminal: Terminal<CrosstermBackend<T>>,
+        ) -> anyhow::Result<Option<Repository>> {
             self.update_matched_repos();
 
             loop {
@@ -99,14 +116,19 @@ mod app {
                                 self.update_matched_repos();
                             }
                         }
-                        KeyCode::Esc => return Ok(None),
+                        KeyCode::Esc => {
+                            terminal.clear()?;
+                            return Ok(None);
+                        }
                         KeyCode::Enter => {
                             if let Some(selected) = self.list.selected() {
                                 if let Some(repo) = self.matched_repos.get(selected).cloned() {
+                                    terminal.clear()?;
                                     return Ok(Some(repo));
                                 }
                             }
 
+                            terminal.clear()?;
                             return Ok(None);
                         }
                         KeyCode::Up => self.list.select_next(),

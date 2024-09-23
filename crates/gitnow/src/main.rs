@@ -4,8 +4,7 @@ use std::path::PathBuf;
 
 use anyhow::Context;
 use clap::{Parser, Subcommand};
-use commands::root::RootCommand;
-use components::inline_command::InlineCommand;
+use commands::{root::RootCommand, shell::Shell};
 use config::Config;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::EnvFilter;
@@ -50,7 +49,7 @@ struct Command {
 
 #[derive(Subcommand)]
 enum Commands {
-    Hello {},
+    Init(Shell),
 }
 
 const DEFAULT_CONFIG_PATH: &str = ".config/gitnow/gitnow.toml";
@@ -81,7 +80,7 @@ async fn main() -> anyhow::Result<()> {
     tracing::debug!("Starting cli");
 
     match cli.command {
-        Some(_) => todo!(),
+        Some(Commands::Init(mut shell)) => shell.execute().await?,
         None => {
             RootCommand::new(app)
                 .execute(
