@@ -8,6 +8,14 @@ Git Now is a utility for easily navigating git projects from common upstream pro
 
 ```bash
 cargo (b)install gitnow
+
+# You can either use gitnow directly (and use spawned shell sessions)
+gitnow
+
+# Or install gitnow scripts (in your .bashrc, .zshrc) this will use native shell commands to move you around
+eval $(gitnow init zsh)
+git-now # Long 
+gn # Short alias
 ```
 
 ## Reasoning
