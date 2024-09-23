@@ -5,6 +5,7 @@ edition = "2021"
 readme = "../../README.md"
 repository = "https://github.com/kjuulh/gitnow"
 homepage = "https://gitnow-client.prod.kjuulh.app"
+license = "MIT"
 
 version.workspace = true
 publish = true
