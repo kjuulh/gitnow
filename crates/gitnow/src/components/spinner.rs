@@ -75,12 +75,6 @@ impl SpinnerState {
         if now.duration_since(self.last_event) >= self.interval {
             self.last_event = now;
             self.next_state();
-
-            batch.with(Command::new(|d| {
-                d.send(Msg::Tick);
-
-                None
-            }));
         }
 
         batch

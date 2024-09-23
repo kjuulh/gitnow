@@ -43,6 +43,9 @@ struct Command {
 
     #[arg(long = "force-refresh", default_value = "false")]
     force_refresh: bool,
+
+    #[arg(long = "force-cache-update", default_value = "false")]
+    force_cache_update: bool,
 }
 
 #[derive(Subcommand)]
@@ -87,6 +90,7 @@ async fn main() -> anyhow::Result<()> {
                     !cli.no_clone,
                     !cli.no_shell,
                     cli.force_refresh,
+                    cli.force_cache_update,
                 )
                 .await?;
         }

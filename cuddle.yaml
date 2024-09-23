@@ -21,3 +21,5 @@ scripts:
     type: shell
   update-gifs:
     type: shell
+  install:
+    type: shell

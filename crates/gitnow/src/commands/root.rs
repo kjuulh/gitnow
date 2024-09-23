@@ -29,23 +29,33 @@ impl RootCommand {
         clone: bool,
         shell: bool,
         force_refresh: bool,
+        force_cache_update: bool,
     ) -> anyhow::Result<()> {
         tracing::debug!("executing");
 
-        let repositories = if cache {
-            match self.app.cache().get().await? {
-                Some(repos) => repos,
-                None => {
-                    tracing::info!("finding repositories...");
-                    let repositories = self.app.projects_list().get_projects().await?;
+        let repositories = if !force_cache_update {
+            if cache {
+                match self.app.cache().get().await? {
+                    Some(repos) => repos,
+                    None => {
+                        tracing::info!("finding repositories...");
+                        let repositories = self.app.projects_list().get_projects().await?;
 
-                    self.app.cache().update(&repositories).await?;
+                        self.app.cache().update(&repositories).await?;
 
-                    repositories
+                        repositories
+                    }
                 }
+            } else {
+                self.app.projects_list().get_projects().await?
             }
         } else {
-            self.app.projects_list().get_projects().await?
+            tracing::info!("forcing cache update...");
+            let repositories = self.app.projects_list().get_projects().await?;
+
+            self.app.cache().update(&repositories).await?;
+
+            repositories
         };
 
         let repo = match search {
