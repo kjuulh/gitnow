@@ -4,6 +4,14 @@ Git Now is a utility for easily navigating git projects from common upstream pro
 
 ![example gif](./assets/gifs/example.gif)
 
+## Installation
+
+```bash
+cargo (b)install gitnow
+```
+
+## Reasoning
+
 How many steps do you normally do to download a project?
 
 1. Navigate to github.com
