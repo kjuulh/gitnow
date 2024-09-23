@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, io::IsTerminal};
 
 use crate::{
     app::App,
@@ -88,7 +88,7 @@ impl RootCommand {
         if clone {
             let git_clone = self.app.git_clone();
 
-            if atty::is(atty::Stream::Stdout) && shell {
+            if std::io::stdout().is_terminal() && shell {
                 let mut wrap_cmd =
                     InlineCommand::new(format!("cloning: {}", repo.to_rel_path().display()));
                 let repo = repo.clone();

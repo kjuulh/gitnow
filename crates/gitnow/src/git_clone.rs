@@ -1,4 +1,4 @@
-use crate::{app::App, components::inline_command::InlineCommand, git_provider::Repository};
+use crate::{app::App, git_provider::Repository};
 
 #[derive(Debug, Clone)]
 pub struct GitClone {

@@ -1,23 +1,15 @@
-use std::{
-    io::{stderr, Write},
-    time::Duration,
-};
+use std::time::Duration;
 
-use anyhow::Context;
-use crossterm::{
-    event::{EventStream, KeyCode, KeyEventKind},
-    terminal::{enable_raw_mode, EnterAlternateScreen},
-    ExecutableCommand,
-};
+use crossterm::event::{EventStream, KeyCode};
 use futures::{FutureExt, StreamExt};
 use ratatui::{
     crossterm,
     prelude::*,
-    widgets::{Block, Padding, Paragraph},
+    widgets::{Block, Padding},
     TerminalOptions, Viewport,
 };
 
-use crate::components::{BatchCommand, Command};
+use crate::components::BatchCommand;
 
 use super::{
     create_dispatch,

@@ -1,11 +1,11 @@
 use std::time::{Duration, Instant};
 
 use ratatui::{
-    text::{Line, Span, Text},
+    text::{Line, Span},
     widgets::{Block, Paragraph, StatefulWidget, Widget},
 };
 
-use super::{BatchCommand, Command, IntoCommand, Msg};
+use super::{BatchCommand, IntoCommand, Msg};
 
 pub struct Spinner<'a> {
     span: Span<'a>,
@@ -68,8 +68,8 @@ impl Default for SpinnerState {
 const MINIDOT_FRAMES: [&str; 10] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
 impl SpinnerState {
-    pub fn update(&mut self, msg: &Msg) -> impl IntoCommand {
-        let mut batch = BatchCommand::default();
+    pub fn update(&mut self, _msg: &Msg) -> impl IntoCommand {
+        let batch = BatchCommand::default();
 
         let now = Instant::now();
         if now.duration_since(self.last_event) >= self.interval {

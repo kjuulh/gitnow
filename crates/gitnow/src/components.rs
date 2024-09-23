@@ -1,4 +1,3 @@
-use anyhow::Error;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 pub mod inline_command;

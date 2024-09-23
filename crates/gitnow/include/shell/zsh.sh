@@ -1,5 +1,5 @@
 function git-now {
-  choice=$(gitnow "$@")
+  choice=$(gitnow  "$@" --no-shell)
     if [[ $? -ne 0 ]]; then
     return $?
   fi
