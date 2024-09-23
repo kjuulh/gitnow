@@ -1,5 +1,5 @@
 use anyhow::Context;
-use gitea_rs::apis::configuration::Configuration;
+use gitea_client::apis::configuration::Configuration;
 use url::Url;
 
 use crate::{app::App, config::GiteaAccessToken};
@@ -68,9 +68,9 @@ impl GiteaProvider {
         &self,
         config: &Configuration,
         page: usize,
-    ) -> anyhow::Result<Vec<gitea_rs::models::Repository>> {
+    ) -> anyhow::Result<Vec<gitea_client::models::Repository>> {
         let repos =
-            gitea_rs::apis::user_api::user_current_list_repos(config, Some(page as i32), None)
+            gitea_client::apis::user_api::user_current_list_repos(config, Some(page as i32), None)
                 .await
                 .context("failed to fetch repos for users")?;
 
@@ -125,9 +125,9 @@ impl GiteaProvider {
         user: &str,
         config: &Configuration,
         page: usize,
-    ) -> anyhow::Result<Vec<gitea_rs::models::Repository>> {
+    ) -> anyhow::Result<Vec<gitea_client::models::Repository>> {
         let repos =
-            gitea_rs::apis::user_api::user_list_repos(config, user, Some(page as i32), None)
+            gitea_client::apis::user_api::user_list_repos(config, user, Some(page as i32), None)
                 .await
                 .context("failed to fetch repos for users")?;
 
@@ -184,8 +184,8 @@ impl GiteaProvider {
         organisation: &str,
         config: &Configuration,
         page: usize,
-    ) -> anyhow::Result<Vec<gitea_rs::models::Repository>> {
-        let repos = gitea_rs::apis::organization_api::org_list_repos(
+    ) -> anyhow::Result<Vec<gitea_client::models::Repository>> {
+        let repos = gitea_client::apis::organization_api::org_list_repos(
             config,
             organisation,
             Some(page as i32),
@@ -202,7 +202,7 @@ impl GiteaProvider {
         api: &str,
         access_token: Option<&GiteaAccessToken>,
     ) -> anyhow::Result<Configuration> {
-        let mut config = gitea_rs::apis::configuration::Configuration::new();
+        let mut config = gitea_client::apis::configuration::Configuration::new();
         config.base_path = api.into();
         match access_token {
             Some(GiteaAccessToken::Env { env }) => {

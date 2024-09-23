@@ -719,9 +719,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32085ea23f3234fc7846555e85283ba4de91e21016dc0455a16286d87a292d64"
 
 [[package]]
-name = "gitea-rs"
+name = "gitea-client"
 version = "1.22.1"
-source = "git+https://git.front.kjuulh.io/kjuulh/gitea-rs#6eb4cea5c16d85d32555cea10dc55c045231ca10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b2c0b6c1b9c7d3b54eff20e6741c82c88f5b25b6469807a306f2e0756e17b2e4"
 dependencies = [
  "reqwest",
  "serde",
@@ -743,7 +744,7 @@ dependencies = [
  "dirs 5.0.1",
  "dotenv",
  "futures",
- "gitea-rs",
+ "gitea-client",
  "nucleo-matcher",
  "octocrab",
  "pretty_assertions",
