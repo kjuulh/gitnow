@@ -85,26 +85,37 @@ impl RootCommand {
             }
         };
 
-        if clone {
-            let git_clone = self.app.git_clone();
+        let project_path = self
+            .app
+            .config
+            .settings
+            .projects
+            .directory
+            .join(repo.to_rel_path());
+        if !project_path.exists() {
+            if clone {
+                let git_clone = self.app.git_clone();
 
-            if std::io::stdout().is_terminal() && shell {
-                let mut wrap_cmd =
-                    InlineCommand::new(format!("cloning: {}", repo.to_rel_path().display()));
-                let repo = repo.clone();
-                wrap_cmd
-                    .execute(move || async move {
-                        git_clone.clone_repo(&repo, force_refresh).await?;
+                if std::io::stdout().is_terminal() && shell {
+                    let mut wrap_cmd =
+                        InlineCommand::new(format!("cloning: {}", repo.to_rel_path().display()));
+                    let repo = repo.clone();
+                    wrap_cmd
+                        .execute(move || async move {
+                            git_clone.clone_repo(&repo, force_refresh).await?;
 
-                        Ok(())
-                    })
-                    .await?;
+                            Ok(())
+                        })
+                        .await?;
+                } else {
+                    eprintln!("cloning repository...");
+                    git_clone.clone_repo(&repo, force_refresh).await?;
+                }
             } else {
-                eprintln!("cloning repository...");
-                git_clone.clone_repo(&repo, force_refresh).await?;
+                tracing::info!("skipping clone for repo: {}", &repo.to_rel_path().display());
             }
         } else {
-            tracing::info!("skipping clone for repo: {}", &repo.to_rel_path().display());
+            tracing::info!("repository already exists");
         }
 
         if shell {
