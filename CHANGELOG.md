@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.3] - 2024-09-26
+
+### Added
+- add update command
+- only do clone if not exists
+
+### Fixed
+- *(deps)* update rust crate async-trait to v0.1.83
+- *(deps)* update rust crate octocrab to 0.40.0
+
 ## [0.2.2] - 2024-09-23
 
 ### Other
