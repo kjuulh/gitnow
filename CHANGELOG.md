@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.4] - 2024-10-09
+
+### Fixed
+- *(deps)* update rust crate futures to v0.3.31
+- *(deps)* update rust crate octocrab to 0.41.0
+
+### Other
+- *(deps)* update rust crate clap to v4.5.20
+- *(deps)* update rust crate clap to v4.5.19
+
 ## [0.2.3] - 2024-09-26
 
 ### Added
