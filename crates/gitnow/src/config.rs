@@ -124,7 +124,7 @@ impl CacheDuration {
 impl Default for CacheDuration {
     fn default() -> Self {
         Self::Precise {
-            days: 1,
+            days: 7,
             hours: 0,
             minutes: 0,
         }
