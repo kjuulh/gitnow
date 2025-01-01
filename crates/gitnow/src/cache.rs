@@ -79,6 +79,11 @@ impl Cache {
                     tracing::debug!("cache has expired");
                     return Ok(None);
                 }
+
+                tracing::debug!(
+                    "cache is valid for: {} mins",
+                    cache_duration.saturating_sub(file_modified_last).as_secs() / 60
+                );
             }
         }
 
