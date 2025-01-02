@@ -6,6 +6,9 @@ vars:
   service: "gitnow"
   registry: kasperhermansen
 
+  rust:
+    publish: {}
+
 please:
   project:
     owner: kjuulh
