@@ -57,7 +57,7 @@ const DEFAULT_CONFIG_PATH: &str = ".config/gitnow/gitnow.toml";
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    dotenv::dotenv().ok();
+    dotenvy::dotenv().ok();
     tracing_subscriber::fmt()
         .with_env_filter(
             EnvFilter::builder()
