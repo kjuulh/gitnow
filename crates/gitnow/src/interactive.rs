@@ -36,6 +36,7 @@ impl InteractiveApp for &'static crate::app::App {
 }
 
 mod app {
+    use crossterm::event::KeyModifiers;
     use ratatui::{
         crossterm::event::{self, Event, KeyCode},
         layout::{Constraint, Layout},
@@ -92,6 +93,12 @@ mod app {
                 terminal.draw(|frame| self.draw(frame))?;
 
                 if let Event::Key(key) = event::read()? {
+                    if let KeyCode::Char('c') = key.code {
+                        if key.modifiers.contains(KeyModifiers::CONTROL) {
+                            return Ok(None);
+                        }
+                    }
+
                     match key.code {
                         KeyCode::Char(letter) => {
                             self.current_search.push(letter);
