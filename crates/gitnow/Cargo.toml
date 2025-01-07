@@ -17,7 +17,7 @@ tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 clap.workspace = true
-dotenv.workspace = true
+dotenvy.workspace = true
 
 serde = { version = "1.0.197", features = ["derive"] }
 uuid = { version = "1.7.0", features = ["v4"] }
