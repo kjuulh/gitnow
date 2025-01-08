@@ -20,7 +20,23 @@ pub struct Settings {
     #[serde(default)]
     pub cache: Cache,
 
-    pub post_update_command: Option<String>,
+    pub post_update_command: Option<PostUpdateCommand>,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[serde(untagged)]
+pub enum PostUpdateCommand {
+    Single(String),
+    Multiple(Vec<String>),
+}
+
+impl PostUpdateCommand {
+    pub fn get_commands(&self) -> Vec<String> {
+        match self.clone() {
+            PostUpdateCommand::Single(item) => vec![item],
+            PostUpdateCommand::Multiple(items) => items,
+        }
+    }
 }
 
 #[derive(Debug, Default, Serialize, Deserialize, PartialEq, Clone)]
