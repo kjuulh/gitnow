@@ -6,6 +6,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.4] - 2025-01-08
+
+### Added
+- feat/add-post-clone-command
+
+- add ability to specify custom command
+
+### Fixed
+- use correct post clone command
+- tests for config
+
+### Other
+- add ability to specify multiple commands
+
+
 ## [0.3.3] - 2025-01-07
 
 ### Other
