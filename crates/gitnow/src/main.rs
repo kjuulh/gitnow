@@ -15,6 +15,7 @@ mod cache_codec;
 mod commands;
 mod components;
 mod config;
+mod custom_command;
 mod fuzzy_matcher;
 mod git_clone;
 mod git_provider;

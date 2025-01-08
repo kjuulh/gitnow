@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use anyhow::Context;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Config {
     #[serde(default)]
     pub settings: Settings,
@@ -12,16 +12,18 @@ pub struct Config {
     pub providers: Providers,
 }
 
-#[derive(Debug, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Default, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Settings {
     #[serde(default)]
     pub projects: Projects,
 
     #[serde(default)]
     pub cache: Cache,
+
+    pub post_update_command: Option<String>,
 }
 
-#[derive(Debug, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Default, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Projects {
     pub directory: ProjectLocation,
 }
@@ -57,7 +59,7 @@ impl std::ops::Deref for ProjectLocation {
     }
 }
 
-#[derive(Debug, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Default, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Cache {
     #[serde(default)]
     pub location: CacheLocation,
@@ -89,7 +91,7 @@ impl Default for CacheLocation {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 #[serde(untagged)]
 pub enum CacheDuration {
     Enabled(bool),
@@ -131,7 +133,7 @@ impl Default for CacheDuration {
     }
 }
 
-#[derive(Debug, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Default, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Providers {
     #[serde(default)]
     pub github: Vec<GitHub>,
@@ -139,7 +141,7 @@ pub struct Providers {
     pub gitea: Vec<Gitea>,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct GitHub {
     #[serde(default)]
     pub url: Option<String>,
@@ -155,7 +157,7 @@ pub struct GitHub {
     pub organisations: Vec<GitHubOrganisation>,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct GitHubUser(String);
 
 impl From<GitHubUser> for String {
@@ -170,7 +172,7 @@ impl<'a> From<&'a GitHubUser> for &'a str {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct GitHubOrganisation(String);
 
 impl From<GitHubOrganisation> for String {
@@ -185,7 +187,7 @@ impl<'a> From<&'a GitHubOrganisation> for &'a str {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Gitea {
     pub url: String,
 
@@ -201,21 +203,21 @@ pub struct Gitea {
     pub organisations: Vec<GiteaOrganisation>,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 #[serde(untagged)]
 pub enum GiteaAccessToken {
     Direct(String),
     Env { env: String },
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 #[serde(untagged)]
 pub enum GitHubAccessToken {
     Direct(String),
     Env { env: String },
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct GiteaUser(String);
 
 impl From<GiteaUser> for String {
@@ -230,7 +232,7 @@ impl<'a> From<&'a GiteaUser> for &'a str {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct GiteaOrganisation(String);
 impl From<GiteaOrganisation> for String {
     fn from(value: GiteaOrganisation) -> Self {
@@ -361,7 +363,8 @@ mod test {
                     },
                     projects: Projects {
                         directory: PathBuf::from("git").into()
-                    }
+                    },
+                    post_update_command: None,
                 }
             },
             config
@@ -386,7 +389,8 @@ mod test {
                 },
                 settings: Settings {
                     cache: Cache::default(),
-                    projects: Projects::default()
+                    projects: Projects::default(),
+                    post_update_command: None,
                 }
             },
             config

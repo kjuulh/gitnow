@@ -23,7 +23,7 @@ impl<'a> Spinner<'a> {
     }
 }
 
-impl<'a> StatefulWidget for Spinner<'a> {
+impl StatefulWidget for Spinner<'_> {
     type State = SpinnerState;
 
     fn render(

@@ -4,6 +4,7 @@ use crate::{
     app::App,
     cache::CacheApp,
     components::inline_command::InlineCommand,
+    custom_command::CustomCommandApp,
     fuzzy_matcher::{FuzzyMatcher, FuzzyMatcherApp},
     git_clone::GitCloneApp,
     git_provider::Repository,
@@ -117,6 +118,11 @@ impl RootCommand {
         } else {
             tracing::info!("repository already exists");
         }
+
+        self.app
+            .custom_command()
+            .execute_post_update_command(&project_path)
+            .await?;
 
         if shell {
             self.app.shell().spawn_shell(&repo).await?;
