@@ -114,7 +114,7 @@ impl RootCommand {
 
                     self.app
                         .custom_command()
-                        .execute_post_update_command(&project_path)
+                        .execute_post_clone_command(&project_path)
                         .await?;
                 }
             } else {
