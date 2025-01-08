@@ -1,7 +1,31 @@
+[settings]
+# Runs after a project is fetched for the first time, either a single string, or multiple in an array
+post_clone_command = "jj git init --colocate"
+# Runs after a project is jumped to if it already exists.
+post_update_command = ["git pull", "jj git fetch"]
+
 [[providers.github]]
+# Who is the user running the clone command
+current_user = "kjuulh"
+# How to authenticate to github
+access_token = { env = "GITHUB_ACCESS_TOKEN" }
+
+# Which users to index
 users = ["kjuulh"]
+# Which organisations to index
 organisations = ["lunarway"]
 
 [[providers.gitea]]
+# WHich gitea instance to authenticate against
+url = "https://git.front.kjuulh.io/api/v1"
+
+# How to authenticate to gitea
+current_user = "kjuulh"
+
+# WHich token to use to authenticate
+access_token = { env = "GITEA_ACCESS_TOKEN" }
+
+# Which users to index
 users = ["kjuulh"]
+# Which organisations to index
 organisation = ["noorgplease"]
