@@ -398,6 +398,7 @@ mod test {
                         directory: PathBuf::from("git").into()
                     },
                     post_update_command: None,
+                    post_clone_command: None
                 }
             },
             config
@@ -424,6 +425,7 @@ mod test {
                     cache: Cache::default(),
                     projects: Projects::default(),
                     post_update_command: None,
+                    post_clone_command: None
                 }
             },
             config
