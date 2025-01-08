@@ -111,18 +111,23 @@ impl RootCommand {
                 } else {
                     eprintln!("cloning repository...");
                     git_clone.clone_repo(&repo, force_refresh).await?;
+
+                    self.app
+                        .custom_command()
+                        .execute_post_update_command(&project_path)
+                        .await?;
                 }
             } else {
                 tracing::info!("skipping clone for repo: {}", &repo.to_rel_path().display());
             }
         } else {
             tracing::info!("repository already exists");
-        }
 
-        self.app
-            .custom_command()
-            .execute_post_update_command(&project_path)
-            .await?;
+            self.app
+                .custom_command()
+                .execute_post_update_command(&project_path)
+                .await?;
+        }
 
         if shell {
             self.app.shell().spawn_shell(&repo).await?;
