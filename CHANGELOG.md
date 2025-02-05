@@ -6,6 +6,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.5] - 2025-02-05
+
+### Fixed
+- *(deps)* update rust crate uuid to v1.13.0
+- *(deps)* update all dependencies
+- *(deps)* update rust crate async-trait to v0.1.86
+- *(deps)* update rust crate uuid to v1.12.1
+- *(deps)* update rust crate octocrab to 0.43.0
+- *(deps)* update rust crate uuid to v1.12.0
+- *(deps)* update rust crate dirs to v6
+- *(deps)* update rust crate uuid to v1.11.1
+
+### Other
+- *(deps)* update rust crate clap to v4.5.27
+- *(deps)* update rust crate clap to v4.5.26
+- *(deps)* update rust crate tokio to v1.43.0
+- update example
+
 ## [0.3.4] - 2025-01-08
 
 ### Added
