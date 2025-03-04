@@ -815,6 +815,7 @@ dependencies = [
  "prost",
  "prost-types",
  "ratatui",
+ "regex",
  "serde",
  "termwiz 0.23.0",
  "tokio",
