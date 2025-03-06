@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.6] - 2025-03-06
+
+### Fixed
+- *(deps)* update rust crate bytes to v1.10.1
+
 ## [0.3.5] - 2025-03-04
 
 ### Added
