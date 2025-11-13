@@ -1,5 +1,7 @@
 # Git Now
 
+> https://gitnow.kjuulh.io/
+
 Git Now is a utility for easily navigating git projects from common upstream providers. Search, Download, and Enter projects as quickly as you can type.
 
 ![example gif](./assets/gifs/example.gif)
