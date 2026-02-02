@@ -3,18 +3,16 @@ use std::time::Duration;
 use crossterm::event::{EventStream, KeyCode};
 use futures::{FutureExt, StreamExt};
 use ratatui::{
-    crossterm,
+    TerminalOptions, Viewport, crossterm,
     prelude::*,
     widgets::{Block, Padding},
-    TerminalOptions, Viewport,
 };
 
 use crate::components::BatchCommand;
 
 use super::{
-    create_dispatch,
+    Dispatch, IntoCommand, Msg, Receiver, create_dispatch,
     spinner::{Spinner, SpinnerState},
-    Dispatch, IntoCommand, Msg, Receiver,
 };
 
 pub struct InlineCommand {
@@ -120,7 +118,7 @@ impl InlineCommand {
                 return Ok(true);
             }
 
-            let mut cmd = self.update_state(&msg);
+            let mut cmd = self.update_state(msg);
 
             loop {
                 let msg = cmd.into_command().execute(dispatch);
@@ -128,7 +126,7 @@ impl InlineCommand {
                 match msg {
                     Some(Msg::Quit) => return Ok(true),
                     Some(msg) => {
-                        cmd = self.update_state(&msg);
+                        cmd = self.update_state(msg);
                     }
                     None => break,
                 }
@@ -163,7 +161,7 @@ impl InlineCommand {
         None
     }
 
-    fn update_state(&mut self, msg: &Msg) -> impl IntoCommand {
+    fn update_state(&mut self, msg: Msg) -> impl IntoCommand {
         tracing::debug!("handling message: {:?}", msg);
 
         let mut batch = BatchCommand::default();
@@ -178,7 +176,7 @@ impl InlineCommand {
             }
         }
 
-        batch.with(self.spinner.update(msg));
+        batch.with(self.spinner.update(&msg));
 
         batch.into_command()
     }

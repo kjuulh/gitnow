@@ -1,7 +1,7 @@
 [package]
 name = "gitnow"
 description = "Git Now is a utility for easily navigating git projects from common upstream providers. Search, Download, and Enter projects as quickly as you can type."
-edition = "2021"
+edition = "2024"
 readme = "../../README.md"
 repository = "https://github.com/kjuulh/gitnow"
 homepage = "https://gitnow-client.prod.kjuulh.app"

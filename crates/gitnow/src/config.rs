@@ -148,7 +148,7 @@ impl CacheDuration {
                 hours,
                 minutes,
             } => Some(
-                std::time::Duration::from_days(*days)
+                std::time::Duration::from_hours(*days * 24)
                     + std::time::Duration::from_hours(*hours)
                     + std::time::Duration::from_mins(*minutes),
             ),
