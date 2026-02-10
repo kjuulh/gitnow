@@ -1,0 +1,6 @@
+[tools]
+rust = "1.93"
+cargo = "latest"
+
+[tasks.install]
+run = "cargo install --path ./crates/gitnow"
