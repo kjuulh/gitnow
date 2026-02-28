@@ -2,7 +2,10 @@ use std::path::PathBuf;
 
 use anyhow::Context;
 use clap::{Parser, Subcommand};
-use commands::{clone::CloneCommand, root::RootCommand, shell::Shell, update::Update};
+use commands::{
+    clone::CloneCommand, root::RootCommand, shell::Shell, update::Update,
+    worktree::WorktreeCommand,
+};
 use config::Config;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::EnvFilter;
@@ -20,12 +23,18 @@ mod git_provider;
 mod interactive;
 mod projects_list;
 mod shell;
+mod template_command;
+mod worktree;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = Some("Navigate git projects at the speed of thought"))]
 struct Command {
     #[command(subcommand)]
     command: Option<Commands>,
+
+    /// Path to config file (default: ~/.config/gitnow/gitnow.toml, or $GITNOW_CONFIG)
+    #[arg(long = "config", short = 'c', global = true)]
+    config: Option<PathBuf>,
 
     #[arg()]
     search: Option<String>,
@@ -51,6 +60,7 @@ enum Commands {
     Init(Shell),
     Update(Update),
     Clone(CloneCommand),
+    Worktree(WorktreeCommand),
 }
 
 const DEFAULT_CONFIG_PATH: &str = ".config/gitnow/gitnow.toml";
@@ -66,19 +76,23 @@ async fn main() -> anyhow::Result<()> {
         )
         .init();
 
-    let home =
-        std::env::var("HOME").context("HOME was not found, are you using a proper shell?")?;
-    let default_config_path = PathBuf::from(home).join(DEFAULT_CONFIG_PATH);
-    let config_path = std::env::var("GITNOW_CONFIG")
-        .map(PathBuf::from)
-        .unwrap_or(default_config_path);
+    let cli = Command::parse();
+    tracing::debug!("Starting cli");
+
+    let config_path = if let Some(path) = &cli.config {
+        path.clone()
+    } else {
+        let home =
+            std::env::var("HOME").context("HOME was not found, are you using a proper shell?")?;
+        let default_config_path = PathBuf::from(home).join(DEFAULT_CONFIG_PATH);
+        std::env::var("GITNOW_CONFIG")
+            .map(PathBuf::from)
+            .unwrap_or(default_config_path)
+    };
 
     let config = Config::from_file(&config_path).await?;
 
     let app = app::App::new_static(config).await?;
-
-    let cli = Command::parse();
-    tracing::debug!("Starting cli");
 
     match cli.command {
         Some(cmd) => match cmd {
@@ -90,6 +104,9 @@ async fn main() -> anyhow::Result<()> {
             }
             Commands::Clone(mut clone) => {
                 clone.execute(app).await?;
+            }
+            Commands::Worktree(mut wt) => {
+                wt.execute(app).await?;
             }
         },
         None => {

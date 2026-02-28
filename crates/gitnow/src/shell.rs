@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use anyhow::Context;
 
 use crate::{app::App, git_provider::Repository};
@@ -20,10 +22,14 @@ impl Shell {
             .directory
             .join(repository.to_rel_path());
 
-        if !project_path.exists() {
+        self.spawn_shell_at(&project_path).await
+    }
+
+    pub async fn spawn_shell_at(&self, path: &Path) -> anyhow::Result<()> {
+        if !path.exists() {
             anyhow::bail!(
                 "project path: {} does not exists, it is either a file, or hasn't been cloned",
-                project_path.display()
+                path.display()
             );
         }
 
@@ -31,7 +37,7 @@ impl Shell {
             .context("failed to find SHELL variable, required for spawning embedded shells")?;
 
         let mut shell_cmd = tokio::process::Command::new(shell);
-        shell_cmd.current_dir(project_path);
+        shell_cmd.current_dir(path);
 
         let mut process = shell_cmd.spawn().context("failed to spawn child session")?;
 

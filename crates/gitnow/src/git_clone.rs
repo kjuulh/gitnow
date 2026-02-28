@@ -1,4 +1,6 @@
-use crate::{app::App, git_provider::Repository};
+use std::collections::HashMap;
+
+use crate::{app::App, git_provider::Repository, template_command};
 
 #[derive(Debug, Clone)]
 pub struct GitClone {
@@ -35,20 +37,27 @@ impl GitClone {
             return Ok(());
         }
 
+        let template = self
+            .app
+            .config
+            .settings
+            .clone_command
+            .as_deref()
+            .unwrap_or(template_command::DEFAULT_CLONE_COMMAND);
+
         tracing::info!(
             "cloning: {} into {}",
             repository.ssh_url.as_str(),
             &project_path.display().to_string(),
         );
 
-        let mut cmd = tokio::process::Command::new("git");
-        cmd.args([
-            "clone",
-            repository.ssh_url.as_str(),
-            &project_path.display().to_string(),
+        let path_str = project_path.display().to_string();
+        let context = HashMap::from([
+            ("ssh_url", repository.ssh_url.as_str()),
+            ("path", path_str.as_str()),
         ]);
 
-        let output = cmd.output().await?;
+        let output = template_command::render_and_execute(template, context).await?;
         match output.status.success() {
             true => tracing::debug!(
                 "cloned {} into {}",

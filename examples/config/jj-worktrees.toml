@@ -1,0 +1,42 @@
+# Example: jj (Jujutsu) with workspace support
+#
+# Uses jj for both normal clones and worktrees/workspaces.
+#
+# Normal clone (`gitnow`):
+#   ~/git/github.com/owner/repo/   # jj git clone
+#
+# Worktree/workspace (`gitnow worktree`):
+#   ~/git/github.com/owner/repo/
+#   ├── .bare/       # jj git clone (used as the main repo)
+#   ├── main/        # jj workspace
+#   └── feature-x/   # jj workspace
+#
+# Usage:
+#   gitnow                        # clone with jj, enter repo
+#   gitnow worktree               # pick repo, then pick branch/workspace
+#   gitnow worktree myrepo -b main
+
+[settings]
+# Use jj for normal clones
+clone_command = "jj git clone {{ ssh_url }} {{ path }}"
+
+# Runs after a project is fetched for the first time
+post_clone_command = "jj git fetch --all-remotes"
+
+# Runs when jumping to an already-cloned project
+post_update_command = "jj git fetch --all-remotes"
+
+[settings.worktree]
+# Clone the repo for worktree use
+clone_command = "jj git clone {{ ssh_url }} {{ bare_path }}"
+
+# Create a new jj workspace for the selected branch
+add_command = "jj -R {{ bare_path }} workspace add --name {{ branch }} {{ worktree_path }}"
+
+# List bookmarks from the jj repo (one name per line)
+list_branches_command = "jj -R {{ bare_path }} bookmark list -T 'name ++ \"\\n\"'"
+
+[[providers.github]]
+current_user = "your-user"
+access_token = { env = "GITHUB_ACCESS_TOKEN" }
+organisations = ["your-org"]

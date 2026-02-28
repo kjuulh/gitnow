@@ -1,6 +1,7 @@
 pub mod root;
 pub mod shell;
 pub mod update;
+pub mod worktree;
 pub mod clone {
 
     use std::sync::Arc;

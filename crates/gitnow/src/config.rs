@@ -22,6 +22,29 @@ pub struct Settings {
 
     pub post_clone_command: Option<PostCloneCommand>,
     pub post_update_command: Option<PostUpdateCommand>,
+
+    /// Minijinja template for the clone command.
+    /// Default: "git clone {{ ssh_url }} {{ path }}"
+    pub clone_command: Option<String>,
+
+    /// Worktree configuration.
+    #[serde(default)]
+    pub worktree: Option<WorktreeSettings>,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub struct WorktreeSettings {
+    /// Template for bare-cloning a repository.
+    /// Default: "git clone --bare {{ ssh_url }} {{ bare_path }}"
+    pub clone_command: Option<String>,
+
+    /// Template for adding a worktree.
+    /// Default: "git -C {{ bare_path }} worktree add {{ worktree_path }} {{ branch }}"
+    pub add_command: Option<String>,
+
+    /// Template for listing branches.
+    /// Default: "git -C {{ bare_path }} branch -r --format=%(refname:short)"
+    pub list_branches_command: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
@@ -398,7 +421,9 @@ mod test {
                         directory: PathBuf::from("git").into()
                     },
                     post_update_command: None,
-                    post_clone_command: None
+                    post_clone_command: None,
+                    clone_command: None,
+                    worktree: None,
                 }
             },
             config
@@ -425,10 +450,62 @@ mod test {
                     cache: Cache::default(),
                     projects: Projects::default(),
                     post_update_command: None,
-                    post_clone_command: None
+                    post_clone_command: None,
+                    clone_command: None,
+                    worktree: None,
                 }
             },
             config
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_can_parse_config_with_clone_command() -> anyhow::Result<()> {
+        let content = r#"
+              [settings]
+              projects = { directory = "git" }
+              clone_command = "jj git clone {{ ssh_url }} {{ path }}"
+            "#;
+
+        let config = Config::from_string(content)?;
+
+        assert_eq!(
+            config.settings.clone_command,
+            Some("jj git clone {{ ssh_url }} {{ path }}".to_string())
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_can_parse_config_with_worktree() -> anyhow::Result<()> {
+        let content = r#"
+              [settings]
+              projects = { directory = "git" }
+
+              [settings.worktree]
+              clone_command = "jj git clone {{ ssh_url }} {{ bare_path }}"
+              add_command = "jj workspace add --name {{ branch }} {{ worktree_path }}"
+              list_branches_command = "jj -R {{ bare_path }} branch list"
+            "#;
+
+        let config = Config::from_string(content)?;
+
+        assert_eq!(
+            config.settings.worktree,
+            Some(WorktreeSettings {
+                clone_command: Some(
+                    "jj git clone {{ ssh_url }} {{ bare_path }}".to_string()
+                ),
+                add_command: Some(
+                    "jj workspace add --name {{ branch }} {{ worktree_path }}".to_string()
+                ),
+                list_branches_command: Some(
+                    "jj -R {{ bare_path }} branch list".to_string()
+                ),
+            })
         );
 
         Ok(())

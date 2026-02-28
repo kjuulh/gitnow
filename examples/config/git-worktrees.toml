@@ -1,0 +1,34 @@
+# Example: git with worktree support
+#
+# Uses bare repositories for worktrees. Directory layout:
+#
+#   ~/git/github.com/owner/repo/
+#   ├── .bare/       # bare clone
+#   ├── main/        # worktree
+#   └── feature-x/   # worktree
+#
+# Usage:
+#   gitnow worktree              # pick repo, then pick branch
+#   gitnow worktree myrepo -b main
+
+[settings]
+# Normal clone (used by `gitnow` without worktree subcommand)
+# clone_command = "git clone {{ ssh_url }} {{ path }}"
+
+[settings.worktree]
+# All of these are the defaults — shown here for reference.
+# You only need [settings.worktree] if you want to override them.
+
+# Bare clone for worktree repos
+clone_command = "git clone --bare {{ ssh_url }} {{ bare_path }}"
+
+# Create a worktree from the bare repo
+add_command = "git -C {{ bare_path }} worktree add {{ worktree_path }} {{ branch }}"
+
+# List branches in the bare repo
+list_branches_command = "git -C {{ bare_path }} branch --format=%(refname:short)"
+
+[[providers.github]]
+current_user = "your-user"
+access_token = { env = "GITHUB_ACCESS_TOKEN" }
+organisations = ["your-org"]
