@@ -1,6 +1,21 @@
 [tools]
 rust = "1.93"
 cargo = "latest"
+goreleaser = "latest"
+zig = "latest"
+"cargo:cargo-zigbuild" = "latest"
 
 [tasks.install]
 run = "cargo install --path ./crates/gitnow"
+
+[tasks.test]
+run = "cargo test --workspace"
+description = "Run all workspace tests"
+
+[tasks.release]
+run = "goreleaser release --clean"
+description = "Create a release using GoReleaser (requires GITEA_TOKEN and a git tag)"
+
+[tasks.release-snapshot]
+run = "goreleaser release --snapshot --clean"
+description = "Build a local snapshot release without publishing"

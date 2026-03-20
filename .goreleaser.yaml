@@ -1,0 +1,62 @@
+version: 2
+
+before:
+  hooks:
+    - cargo install --locked cargo-zigbuild
+
+builds:
+  - id: gitnow
+    builder: rust
+    binary: gitnow
+    dir: .
+    targets:
+      - x86_64-unknown-linux-gnu
+      - x86_64-apple-darwin
+      - aarch64-unknown-linux-gnu
+      - aarch64-apple-darwin
+    flags:
+      - --release
+      - -p=gitnow
+      - --features=vendored-openssl
+
+archives:
+  - id: gitnow
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+
+gitea_urls:
+  api: https://git.kjuulh.io/api/v1
+  download: https://git.kjuulh.io
+  skip_tls_verify: false
+
+release:
+  gitea:
+    owner: kjuulh
+    name: gitnow
+  draft: false
+  prerelease: auto
+  name_template: "v{{ .Version }}"
+  mode: keep-existing
+
+homebrew_casks:
+  - name: gitnow
+    binaries:
+      - gitnow
+    repository:
+      owner: kjuulh
+      name: homebrew-tap
+      token: "{{ .Env.GITEA_TOKEN }}"
+    url:
+      template: "https://git.kjuulh.io/kjuulh/gitnow/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
+    homepage: "https://gitnow-client.prod.kjuulh.app"
+    description: "Git Now is a utility for easily navigating git projects from common upstream providers."
