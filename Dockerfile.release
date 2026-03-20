@@ -19,5 +19,7 @@ RUN mise trust && mise install
 
 COPY . .
 
+ENV MISE_YES=1
+ENV MISE_TRUSTED_CONFIG_PATHS="/build"
 ENTRYPOINT ["mise", "run"]
 CMD ["release"]
