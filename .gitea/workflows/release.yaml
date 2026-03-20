@@ -26,5 +26,6 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         run: |
           docker run --rm \
-            -e GITEA_TOKEN=${{ secrets.GITEA_TOKEN }} \
+            -e GITEA_TOKEN=${{ secrets.RELEASE_TOKEN }} \
+            -e RELEASE_TOKEN=${{ secrets.RELEASE_TOKEN }} \
             gitnow-release release

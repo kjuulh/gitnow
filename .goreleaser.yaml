@@ -53,7 +53,8 @@ homebrew_casks:
     repository:
       owner: kjuulh
       name: homebrew-tap
-      token: "{{ .Env.GITEA_TOKEN }}"
+      token: "{{ .Env.RELEASE_TOKEN }}"
+      token_type: "gitea"
     url:
       template: "https://git.kjuulh.io/kjuulh/gitnow/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
     homepage: "https://gitnow-client.prod.kjuulh.app"
