@@ -20,17 +20,11 @@ jobs:
 
       - name: Snapshot (dry run)
         if: startsWith(github.ref, 'refs/tags/') == false
-        run: |
-          docker run --rm \
-            -v "${{ github.workspace }}:/build" \
-            -w /build \
-            gitnow-release release-snapshot
+        run: docker run --rm gitnow-release release-snapshot
 
       - name: Release
         if: startsWith(github.ref, 'refs/tags/')
         run: |
           docker run --rm \
-            -v "${{ github.workspace }}:/build" \
-            -w /build \
             -e GITEA_TOKEN=${{ secrets.GITEA_TOKEN }} \
             gitnow-release release
