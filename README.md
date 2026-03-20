@@ -110,3 +110,71 @@ list_branches_command = "jj -R {{ bare_path }} bookmark list -T 'name ++ \"\\n\"
 ```
 
 Available template variables for worktree commands: `bare_path`, `worktree_path`, `branch`, `ssh_url`.
+
+### Projects
+
+gitnow supports scratch-pad projects that group multiple repositories into a single directory. This is useful when working on features that span several repos.
+
+```bash
+# Create a new project (interactive repo selection)
+gitnow project create my-feature
+
+# Create from a template
+gitnow project create my-feature -t default
+
+# Open an existing project (interactive selection)
+gitnow project
+
+# Open by name
+gitnow project my-feature
+
+# Add more repos to a project
+gitnow project add my-feature
+
+# Delete a project
+gitnow project delete my-feature
+```
+
+Project directories live at `~/.gitnow/projects/` by default. Templates live at `~/.gitnow/templates/`. Both are configurable:
+
+```toml
+[settings.project]
+directory = "~/.gitnow/projects"
+templates_directory = "~/.gitnow/templates"
+```
+
+Commands that navigate to a directory (`gitnow`, `gitnow project`, `gitnow project create`, `gitnow worktree`) will `cd` you there when using the shell integration. Commands that don't produce a path (`project add`, `project delete`, `update`) run normally without changing your directory.
+
+### Shell integration
+
+The recommended way to use gitnow is with shell integration, which uses a **chooser file** to communicate the selected path back to your shell:
+
+```bash
+eval $(gitnow init zsh)
+git-now    # or gn
+```
+
+When you run `git-now`, the shell wrapper:
+
+1. Creates a temporary chooser file
+2. Runs `gitnow` with the `GITNOW_CHOOSER_FILE` env var pointing to it
+3. If gitnow writes a path to the file, the wrapper `cd`s there
+4. If the file is empty (e.g. after `git-now project delete`), no `cd` happens
+
+This works uniformly for all subcommands:
+
+```bash
+git-now                      # pick a repo and cd there
+git-now project              # pick a project and cd there
+git-now project create foo   # create project and cd there
+git-now project delete foo   # deletes project, no cd
+git-now worktree             # pick repo+branch worktree, cd there
+```
+
+You can also set the chooser file manually for scripting:
+
+```bash
+GITNOW_CHOOSER_FILE=/tmp/choice gitnow project
+# or
+gitnow --chooser-file /tmp/choice project
+```
