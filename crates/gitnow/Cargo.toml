@@ -24,9 +24,7 @@ uuid = { version = "1.7.0", features = ["v4"] }
 async-trait = "0.1.82"
 toml = "0.8.19"
 
-gitea-client = { git = "https://git.kjuulh.io/kjuulh/gitea-rs.git", default-features = false, features = ["rustls-ring"] }
-reqwest = { version = "0.13", default-features = false, features = ["__rustls", "json", "webpki-roots"] }
-rustls = { version = "0.23", default-features = false, features = ["ring", "logging", "std", "tls12"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-webpki-roots", "json"] }
 url = "2.5.2"
 dirs = "6.0.0"
 prost = "0.13.2"
@@ -40,7 +38,7 @@ termwiz = "0.23.0"
 regex = "1.11.1"
 minijinja = "2"
 shell-words = "1"
-chrono = { version = "0.4", features = ["serde"] }
+chrono = { version = "0.4", default-features = false, features = ["std", "now", "serde"] }
 serde_json = "1"
 
 [dev-dependencies]
