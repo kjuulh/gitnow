@@ -8,6 +8,7 @@ use crate::{
     chooser::Chooser,
     custom_command::CustomCommandApp,
     interactive::{InteractiveApp, Searchable},
+    project_metadata::{ProjectMetadata, RepoEntry},
     shell::ShellApp,
     template_command,
 };
@@ -84,11 +85,15 @@ pub struct ProjectDeleteCommand {
 struct DirEntry {
     name: String,
     path: PathBuf,
+    metadata: Option<ProjectMetadata>,
 }
 
 impl Searchable for DirEntry {
     fn display_label(&self) -> String {
-        self.name.clone()
+        match &self.metadata {
+            Some(meta) => format!("{} ({})", self.name, meta.created_ago()),
+            None => self.name.clone(),
+        }
     }
 }
 
@@ -125,7 +130,9 @@ fn get_templates_dir(app: &'static App) -> PathBuf {
     resolve_dir(configured, ".gitnow/templates")
 }
 
-/// List subdirectories of `dir` as `DirEntry` items, sorted by name.
+/// List subdirectories of `dir` as `DirEntry` items.
+/// Projects with metadata are sorted by creation time (most recent first),
+/// followed by projects without metadata sorted alphabetically.
 fn list_subdirectories(dir: &Path) -> anyhow::Result<Vec<DirEntry>> {
     if !dir.exists() {
         return Ok(Vec::new());
@@ -135,13 +142,28 @@ fn list_subdirectories(dir: &Path) -> anyhow::Result<Vec<DirEntry>> {
     for entry in std::fs::read_dir(dir)? {
         let entry = entry?;
         if entry.file_type()?.is_dir() {
+            let path = entry.path();
+            let metadata = ProjectMetadata::load(&path);
             entries.push(DirEntry {
                 name: entry.file_name().to_string_lossy().to_string(),
-                path: entry.path(),
+                path,
+                metadata,
             });
         }
     }
-    entries.sort_by(|a, b| a.name.cmp(&b.name));
+
+    entries.sort_by(|a, b| {
+        match (&a.metadata, &b.metadata) {
+            // Both have metadata: most recent first
+            (Some(a_meta), Some(b_meta)) => b_meta.created_at.cmp(&a_meta.created_at),
+            // Metadata projects come before non-metadata ones
+            (Some(_), None) => std::cmp::Ordering::Less,
+            (None, Some(_)) => std::cmp::Ordering::Greater,
+            // Both without metadata: alphabetical
+            (None, None) => a.name.cmp(&b.name),
+        }
+    });
+
     Ok(entries)
 }
 
@@ -388,10 +410,17 @@ impl ProjectCreateCommand {
             }
         };
 
-        if let Some(template) = template {
+        let template_name = if let Some(template) = template {
             eprintln!("  applying template '{}'...", template.name);
             copy_dir_recursive(&template.path, &project_path)?;
-        }
+            Some(template.name.clone())
+        } else {
+            None
+        };
+
+        let repo_entries: Vec<RepoEntry> = selected_repos.iter().map(RepoEntry::from).collect();
+        let metadata = ProjectMetadata::new(dir_name.clone(), template_name, repo_entries);
+        metadata.save(&project_path)?;
 
         eprintln!(
             "project '{}' created at {} with {} repositories",
@@ -436,6 +465,12 @@ impl ProjectAddCommand {
         }
 
         clone_repos_into(app, &selected_repos, &project.path).await?;
+
+        if let Some(mut metadata) = ProjectMetadata::load(&project.path) {
+            let new_entries: Vec<RepoEntry> = selected_repos.iter().map(RepoEntry::from).collect();
+            metadata.add_repositories(new_entries);
+            metadata.save(&project.path)?;
+        }
 
         eprintln!(
             "added {} repositories to project '{}'",

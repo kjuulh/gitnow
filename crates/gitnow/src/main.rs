@@ -22,6 +22,7 @@ mod fuzzy_matcher;
 mod git_clone;
 mod git_provider;
 mod interactive;
+mod project_metadata;
 mod projects_list;
 mod shell;
 mod template_command;

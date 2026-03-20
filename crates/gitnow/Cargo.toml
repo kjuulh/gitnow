@@ -40,6 +40,8 @@ regex = "1.11.1"
 minijinja = "2"
 shell-words = "1"
 openssl = { version = "0.10", features = ["vendored"], optional = true }
+chrono = { version = "0.4", features = ["serde"] }
+serde_json = "1"
 
 [dev-dependencies]
 pretty_assertions = "1.4.0"
