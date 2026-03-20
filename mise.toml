@@ -19,3 +19,10 @@ description = "Create a release using GoReleaser (requires GITEA_TOKEN and a git
 [tasks.release-snapshot]
 run = "goreleaser release --snapshot --clean"
 description = "Build a local snapshot release without publishing"
+
+[tasks.release-docker]
+run = """
+docker build -f Dockerfile.release -t gitnow-release .
+docker run --rm -v "$PWD:/build" -w /build -e GITEA_TOKEN gitnow-release release --snapshot --clean
+"""
+description = "Test the release Docker image locally (snapshot mode)"
