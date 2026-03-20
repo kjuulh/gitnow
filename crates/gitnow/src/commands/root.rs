@@ -3,6 +3,7 @@ use std::{collections::BTreeMap, io::IsTerminal};
 use crate::{
     app::App,
     cache::{load_repositories, CacheApp},
+    chooser::Chooser,
     components::inline_command::InlineCommand,
     custom_command::CustomCommandApp,
     fuzzy_matcher::{FuzzyMatcher, FuzzyMatcherApp},
@@ -31,6 +32,7 @@ impl RootCommand {
         shell: bool,
         force_refresh: bool,
         force_cache_update: bool,
+        chooser: &Chooser,
     ) -> anyhow::Result<()> {
         tracing::debug!("executing");
 
@@ -117,16 +119,7 @@ impl RootCommand {
             self.app.shell().spawn_shell(&repo).await?;
         } else {
             tracing::info!("skipping shell for repo: {}", &repo.to_rel_path().display());
-            println!(
-                "{}",
-                self.app
-                    .config
-                    .settings
-                    .projects
-                    .directory
-                    .join(repo.to_rel_path())
-                    .display()
-            );
+            chooser.set(&self.app.config.settings.projects.directory.join(repo.to_rel_path()))?;
         }
 
         Ok(())

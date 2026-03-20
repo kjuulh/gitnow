@@ -5,6 +5,7 @@ use std::sync::Arc;
 use crate::{
     app::App,
     cache::load_repositories,
+    chooser::Chooser,
     custom_command::CustomCommandApp,
     interactive::{InteractiveApp, Searchable},
     shell::ShellApp,
@@ -256,16 +257,16 @@ fn select_project(
 // --- Command implementations ---
 
 impl ProjectCommand {
-    pub async fn execute(&mut self, app: &'static App) -> anyhow::Result<()> {
+    pub async fn execute(&mut self, app: &'static App, chooser: &Chooser) -> anyhow::Result<()> {
         match self.command.take() {
-            Some(ProjectSubcommand::Create(mut create)) => create.execute(app).await,
+            Some(ProjectSubcommand::Create(mut create)) => create.execute(app, chooser).await,
             Some(ProjectSubcommand::Add(mut add)) => add.execute(app).await,
             Some(ProjectSubcommand::Delete(mut delete)) => delete.execute(app).await,
-            None => self.open_existing(app).await,
+            None => self.open_existing(app, chooser).await,
         }
     }
 
-    async fn open_existing(&self, app: &'static App) -> anyhow::Result<()> {
+    async fn open_existing(&self, app: &'static App, chooser: &Chooser) -> anyhow::Result<()> {
         let projects_dir = get_projects_dir(app);
         let projects = list_subdirectories(&projects_dir)?;
 
@@ -301,10 +302,10 @@ impl ProjectCommand {
                 .ok_or(anyhow::anyhow!("no project selected"))?,
         };
 
-        if !self.no_shell {
+        if !self.no_shell && !chooser.is_active() {
             app.shell().spawn_shell_at(&project.path).await?;
         } else {
-            println!("{}", project.path.display());
+            chooser.set(&project.path)?;
         }
 
         Ok(())
@@ -312,7 +313,7 @@ impl ProjectCommand {
 }
 
 impl ProjectCreateCommand {
-    async fn execute(&mut self, app: &'static App) -> anyhow::Result<()> {
+    async fn execute(&mut self, app: &'static App, chooser: &Chooser) -> anyhow::Result<()> {
         let name = match self.name.take() {
             Some(n) => n,
             None => {
@@ -399,10 +400,10 @@ impl ProjectCreateCommand {
             selected_repos.len()
         );
 
-        if !self.no_shell {
+        if !self.no_shell && !chooser.is_active() {
             app.shell().spawn_shell_at(&project_path).await?;
         } else {
-            println!("{}", project_path.display());
+            chooser.set(&project_path)?;
         }
 
         Ok(())

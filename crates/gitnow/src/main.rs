@@ -13,6 +13,7 @@ use tracing_subscriber::EnvFilter;
 mod app;
 mod cache;
 mod cache_codec;
+pub mod chooser;
 mod commands;
 mod components;
 mod config;
@@ -47,6 +48,12 @@ struct Command {
 
     #[arg(long = "no-shell", default_value = "false")]
     no_shell: bool,
+
+    /// Path to a chooser file; if set, the selected directory path is written
+    /// to this file instead of spawning a shell or printing to stdout.
+    /// Can also be set via the GITNOW_CHOOSER_FILE environment variable.
+    #[arg(long = "chooser-file", global = true, env = "GITNOW_CHOOSER_FILE")]
+    chooser_file: Option<PathBuf>,
 
     #[arg(long = "force-refresh", default_value = "false")]
     force_refresh: bool,
@@ -96,6 +103,16 @@ async fn main() -> anyhow::Result<()> {
 
     let app = app::App::new_static(config).await?;
 
+    // When a chooser file is provided, it implies --no-shell behaviour:
+    // the selected path is written to the file and no interactive shell is
+    // spawned.  The calling shell wrapper is responsible for reading the
+    // file and changing directory.
+    let chooser = cli
+        .chooser_file
+        .map(chooser::Chooser::new)
+        .unwrap_or_default();
+    let no_shell = cli.no_shell || chooser.is_active();
+
     match cli.command {
         Some(cmd) => match cmd {
             Commands::Init(mut shell) => {
@@ -108,10 +125,10 @@ async fn main() -> anyhow::Result<()> {
                 clone.execute(app).await?;
             }
             Commands::Worktree(mut wt) => {
-                wt.execute(app).await?;
+                wt.execute(app, &chooser).await?;
             }
             Commands::Project(mut project) => {
-                project.execute(app).await?;
+                project.execute(app, &chooser).await?;
             }
         },
         None => {
@@ -120,9 +137,10 @@ async fn main() -> anyhow::Result<()> {
                     cli.search.as_ref(),
                     !cli.no_cache,
                     !cli.no_clone,
-                    !cli.no_shell,
+                    !no_shell,
                     cli.force_refresh,
                     cli.force_cache_update,
+                    &chooser,
                 )
                 .await?;
         }

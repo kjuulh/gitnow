@@ -3,6 +3,7 @@ use std::io::IsTerminal;
 use crate::{
     app::App,
     cache::load_repositories,
+    chooser::Chooser,
     components::inline_command::InlineCommand,
     fuzzy_matcher::FuzzyMatcherApp,
     interactive::{InteractiveApp, StringItem},
@@ -32,7 +33,7 @@ pub struct WorktreeCommand {
 }
 
 impl WorktreeCommand {
-    pub async fn execute(&mut self, app: &'static App) -> anyhow::Result<()> {
+    pub async fn execute(&mut self, app: &'static App, chooser: &Chooser) -> anyhow::Result<()> {
         // Step 1: Load repositories
         let repositories = load_repositories(app, !self.no_cache).await?;
 
@@ -142,10 +143,10 @@ impl WorktreeCommand {
         }
 
         // Step 7: Enter shell or print path
-        if !self.no_shell {
+        if !self.no_shell && !chooser.is_active() {
             app.shell().spawn_shell_at(&worktree_path).await?;
         } else {
-            println!("{}", worktree_path.display());
+            chooser.set(&worktree_path)?;
         }
 
         Ok(())
