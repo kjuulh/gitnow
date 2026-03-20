@@ -42,6 +42,10 @@ pub struct ProjectCreateCommand {
     #[arg()]
     name: Option<String>,
 
+    /// Bootstrap from a template in the templates directory
+    #[arg(long = "template", short = 't')]
+    template: Option<String>,
+
     /// Skip cache when fetching repositories
     #[arg(long = "no-cache", default_value = "false")]
     no_cache: bool,
@@ -71,6 +75,68 @@ pub struct ProjectDeleteCommand {
     /// Skip confirmation prompt
     #[arg(long = "force", short = 'f', default_value = "false")]
     force: bool,
+}
+
+fn get_templates_dir(app: &'static App) -> PathBuf {
+    if let Some(ref project_settings) = app.config.settings.project {
+        if let Some(ref dir) = project_settings.templates_directory {
+            let path = PathBuf::from(dir);
+            if let Ok(stripped) = path.strip_prefix("~") {
+                let home = dirs::home_dir().unwrap_or_default();
+                return home.join(stripped);
+            }
+            return path;
+        }
+    }
+
+    let home = dirs::home_dir().unwrap_or_default();
+    home.join(".gitnow").join("templates")
+}
+
+#[derive(Clone)]
+struct TemplateEntry {
+    name: String,
+    path: PathBuf,
+}
+
+impl Searchable for TemplateEntry {
+    fn display_label(&self) -> String {
+        self.name.clone()
+    }
+}
+
+fn list_templates(templates_dir: &PathBuf) -> anyhow::Result<Vec<TemplateEntry>> {
+    if !templates_dir.exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut templates = Vec::new();
+    for entry in std::fs::read_dir(templates_dir)? {
+        let entry = entry?;
+        if entry.file_type()?.is_dir() {
+            let name = entry.file_name().to_string_lossy().to_string();
+            templates.push(TemplateEntry {
+                name,
+                path: entry.path(),
+            });
+        }
+    }
+    templates.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(templates)
+}
+
+fn copy_dir_recursive(src: &std::path::Path, dst: &std::path::Path) -> anyhow::Result<()> {
+    std::fs::create_dir_all(dst)?;
+    for entry in std::fs::read_dir(src)? {
+        let entry = entry?;
+        let dest_path = dst.join(entry.file_name());
+        if entry.file_type()?.is_dir() {
+            copy_dir_recursive(&entry.path(), &dest_path)?;
+        } else {
+            std::fs::copy(entry.path(), &dest_path)?;
+        }
+    }
+    Ok(())
 }
 
 fn get_projects_dir(app: &'static App) -> PathBuf {
@@ -309,6 +375,40 @@ impl ProjectCreateCommand {
                     eprintln!("error: {}", e);
                 }
             }
+        }
+
+        // Step 6: Apply template if requested
+        let templates_dir = get_templates_dir(app);
+        let template = match self.template.take() {
+            Some(name) => {
+                let templates = list_templates(&templates_dir)?;
+                Some(
+                    templates
+                        .into_iter()
+                        .find(|t| t.name == name)
+                        .ok_or_else(|| {
+                            anyhow::anyhow!(
+                                "template '{}' not found in {}",
+                                name,
+                                templates_dir.display()
+                            )
+                        })?,
+                )
+            }
+            None => {
+                let templates = list_templates(&templates_dir)?;
+                if !templates.is_empty() {
+                    eprintln!("Select a project template (Esc to skip):");
+                    app.interactive().interactive_search_items(&templates)?
+                } else {
+                    None
+                }
+            }
+        };
+
+        if let Some(template) = template {
+            eprintln!("  applying template '{}'...", template.name);
+            copy_dir_recursive(&template.path, &project_path)?;
         }
 
         eprintln!(

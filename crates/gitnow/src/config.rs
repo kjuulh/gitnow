@@ -41,6 +41,11 @@ pub struct ProjectSettings {
     /// Directory where projects are stored.
     /// Default: "~/.gitnow/projects"
     pub directory: Option<String>,
+
+    /// Directory containing project templates.
+    /// Each subdirectory is a template whose files are copied into new projects.
+    /// Default: "~/.gitnow/templates"
+    pub templates_directory: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
