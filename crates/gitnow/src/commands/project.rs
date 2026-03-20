@@ -1,13 +1,12 @@
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use crate::{
     app::App,
-    cache::CacheApp,
+    cache::load_repositories,
     custom_command::CustomCommandApp,
     interactive::{InteractiveApp, Searchable},
-    projects_list::ProjectsListApp,
     shell::ShellApp,
     template_command,
 };
@@ -77,55 +76,75 @@ pub struct ProjectDeleteCommand {
     force: bool,
 }
 
-fn get_templates_dir(app: &'static App) -> PathBuf {
-    if let Some(ref project_settings) = app.config.settings.project {
-        if let Some(ref dir) = project_settings.templates_directory {
-            let path = PathBuf::from(dir);
-            if let Ok(stripped) = path.strip_prefix("~") {
-                let home = dirs::home_dir().unwrap_or_default();
-                return home.join(stripped);
-            }
-            return path;
-        }
-    }
+// --- Shared helpers ---
 
-    let home = dirs::home_dir().unwrap_or_default();
-    home.join(".gitnow").join("templates")
-}
-
+/// A named directory entry usable in interactive search.
 #[derive(Clone)]
-struct TemplateEntry {
+struct DirEntry {
     name: String,
     path: PathBuf,
 }
 
-impl Searchable for TemplateEntry {
+impl Searchable for DirEntry {
     fn display_label(&self) -> String {
         self.name.clone()
     }
 }
 
-fn list_templates(templates_dir: &PathBuf) -> anyhow::Result<Vec<TemplateEntry>> {
-    if !templates_dir.exists() {
+/// Resolve a config directory path, expanding `~` to the home directory.
+/// Falls back to `default` if the config value is `None`.
+fn resolve_dir(configured: Option<&str>, default: &str) -> PathBuf {
+    if let Some(dir) = configured {
+        let path = PathBuf::from(dir);
+        if let Ok(stripped) = path.strip_prefix("~") {
+            return dirs::home_dir().unwrap_or_default().join(stripped);
+        }
+        return path;
+    }
+    dirs::home_dir().unwrap_or_default().join(default)
+}
+
+fn get_projects_dir(app: &'static App) -> PathBuf {
+    let configured = app
+        .config
+        .settings
+        .project
+        .as_ref()
+        .and_then(|p| p.directory.as_deref());
+    resolve_dir(configured, ".gitnow/projects")
+}
+
+fn get_templates_dir(app: &'static App) -> PathBuf {
+    let configured = app
+        .config
+        .settings
+        .project
+        .as_ref()
+        .and_then(|p| p.templates_directory.as_deref());
+    resolve_dir(configured, ".gitnow/templates")
+}
+
+/// List subdirectories of `dir` as `DirEntry` items, sorted by name.
+fn list_subdirectories(dir: &Path) -> anyhow::Result<Vec<DirEntry>> {
+    if !dir.exists() {
         return Ok(Vec::new());
     }
 
-    let mut templates = Vec::new();
-    for entry in std::fs::read_dir(templates_dir)? {
+    let mut entries = Vec::new();
+    for entry in std::fs::read_dir(dir)? {
         let entry = entry?;
         if entry.file_type()?.is_dir() {
-            let name = entry.file_name().to_string_lossy().to_string();
-            templates.push(TemplateEntry {
-                name,
+            entries.push(DirEntry {
+                name: entry.file_name().to_string_lossy().to_string(),
                 path: entry.path(),
             });
         }
     }
-    templates.sort_by(|a, b| a.name.cmp(&b.name));
-    Ok(templates)
+    entries.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(entries)
 }
 
-fn copy_dir_recursive(src: &std::path::Path, dst: &std::path::Path) -> anyhow::Result<()> {
+fn copy_dir_recursive(src: &Path, dst: &Path) -> anyhow::Result<()> {
     std::fs::create_dir_all(dst)?;
     for entry in std::fs::read_dir(src)? {
         let entry = entry?;
@@ -139,53 +158,102 @@ fn copy_dir_recursive(src: &std::path::Path, dst: &std::path::Path) -> anyhow::R
     Ok(())
 }
 
-fn get_projects_dir(app: &'static App) -> PathBuf {
-    if let Some(ref project_settings) = app.config.settings.project {
-        if let Some(ref dir) = project_settings.directory {
-            let path = PathBuf::from(dir);
-            if let Ok(stripped) = path.strip_prefix("~") {
-                let home = dirs::home_dir().unwrap_or_default();
-                return home.join(stripped);
+/// Clone selected repositories concurrently into `target_dir`.
+async fn clone_repos_into(
+    app: &'static App,
+    repos: &[crate::git_provider::Repository],
+    target_dir: &Path,
+) -> anyhow::Result<()> {
+    let clone_template = app
+        .config
+        .settings
+        .clone_command
+        .as_deref()
+        .unwrap_or(template_command::DEFAULT_CLONE_COMMAND);
+
+    let concurrency_limit = Arc::new(tokio::sync::Semaphore::new(5));
+    let mut handles = Vec::new();
+
+    for repo in repos {
+        let repo = repo.clone();
+        let target_dir = target_dir.to_path_buf();
+        let clone_template = clone_template.to_string();
+        let concurrency = Arc::clone(&concurrency_limit);
+        let custom_command = app.custom_command();
+
+        let handle = tokio::spawn(async move {
+            let _permit = concurrency.acquire().await?;
+
+            let clone_path = target_dir.join(&repo.repo_name);
+
+            if clone_path.exists() {
+                eprintln!("  {} already exists, skipping", repo.repo_name);
+                return Ok::<(), anyhow::Error>(());
             }
-            return path;
+
+            eprintln!("  cloning {}...", repo.to_rel_path().display());
+
+            let path_str = clone_path.display().to_string();
+            let context = HashMap::from([
+                ("ssh_url", repo.ssh_url.as_str()),
+                ("path", path_str.as_str()),
+            ]);
+
+            let output = template_command::render_and_execute(&clone_template, context).await?;
+
+            if !output.status.success() {
+                let stderr = std::str::from_utf8(&output.stderr).unwrap_or_default();
+                anyhow::bail!("failed to clone {}: {}", repo.repo_name, stderr);
+            }
+
+            custom_command
+                .execute_post_clone_command(&clone_path)
+                .await?;
+
+            Ok(())
+        });
+
+        handles.push(handle);
+    }
+
+    let results = futures::future::join_all(handles).await;
+    for res in results {
+        match res {
+            Ok(Ok(())) => {}
+            Ok(Err(e)) => {
+                tracing::error!("clone error: {}", e);
+                eprintln!("error: {}", e);
+            }
+            Err(e) => {
+                tracing::error!("task error: {}", e);
+                eprintln!("error: {}", e);
+            }
         }
     }
 
-    let home = dirs::home_dir().unwrap_or_default();
-    home.join(".gitnow").join("projects")
+    Ok(())
 }
 
-#[derive(Clone)]
-struct ProjectEntry {
-    name: String,
-    path: PathBuf,
-}
-
-impl Searchable for ProjectEntry {
-    fn display_label(&self) -> String {
-        self.name.clone()
+/// Helper to select an existing project, either by name or interactively.
+fn select_project(
+    app: &'static App,
+    name: Option<String>,
+    projects: &[DirEntry],
+) -> anyhow::Result<DirEntry> {
+    match name {
+        Some(name) => projects
+            .iter()
+            .find(|p| p.name == name)
+            .ok_or_else(|| anyhow::anyhow!("project '{}' not found", name))
+            .cloned(),
+        None => app
+            .interactive()
+            .interactive_search_items(projects)?
+            .ok_or_else(|| anyhow::anyhow!("no project selected")),
     }
 }
 
-fn list_existing_projects(projects_dir: &PathBuf) -> anyhow::Result<Vec<ProjectEntry>> {
-    if !projects_dir.exists() {
-        return Ok(Vec::new());
-    }
-
-    let mut projects = Vec::new();
-    for entry in std::fs::read_dir(projects_dir)? {
-        let entry = entry?;
-        if entry.file_type()?.is_dir() {
-            let name = entry.file_name().to_string_lossy().to_string();
-            projects.push(ProjectEntry {
-                name,
-                path: entry.path(),
-            });
-        }
-    }
-    projects.sort_by(|a, b| a.name.cmp(&b.name));
-    Ok(projects)
-}
+// --- Command implementations ---
 
 impl ProjectCommand {
     pub async fn execute(&mut self, app: &'static App) -> anyhow::Result<()> {
@@ -199,7 +267,7 @@ impl ProjectCommand {
 
     async fn open_existing(&self, app: &'static App) -> anyhow::Result<()> {
         let projects_dir = get_projects_dir(app);
-        let projects = list_existing_projects(&projects_dir)?;
+        let projects = list_subdirectories(&projects_dir)?;
 
         if projects.is_empty() {
             anyhow::bail!(
@@ -214,7 +282,6 @@ impl ProjectCommand {
                     .iter()
                     .find(|p| p.name.contains(needle.as_str()))
                     .or_else(|| {
-                        // fuzzy fallback
                         projects.iter().find(|p| {
                             p.name
                                 .to_lowercase()
@@ -246,7 +313,6 @@ impl ProjectCommand {
 
 impl ProjectCreateCommand {
     async fn execute(&mut self, app: &'static App) -> anyhow::Result<()> {
-        // Step 1: Get project name
         let name = match self.name.take() {
             Some(n) => n,
             None => {
@@ -261,7 +327,6 @@ impl ProjectCreateCommand {
             }
         };
 
-        // Sanitize project name for use as directory
         let dir_name = name
             .replace(' ', "-")
             .replace('/', "-")
@@ -278,22 +343,8 @@ impl ProjectCreateCommand {
             );
         }
 
-        // Step 2: Load repositories
-        let repositories = if !self.no_cache {
-            match app.cache().get().await? {
-                Some(repos) => repos,
-                None => {
-                    eprintln!("fetching repositories...");
-                    let repositories = app.projects_list().get_projects().await?;
-                    app.cache().update(&repositories).await?;
-                    repositories
-                }
-            }
-        } else {
-            app.projects_list().get_projects().await?
-        };
+        let repositories = load_repositories(app, !self.no_cache).await?;
 
-        // Step 3: Multi-select repositories
         eprintln!("Select repositories (Tab to toggle, Enter to confirm):");
         let selected_repos = app
             .interactive()
@@ -303,85 +354,15 @@ impl ProjectCreateCommand {
             anyhow::bail!("no repositories selected");
         }
 
-        // Step 4: Create project directory
         tokio::fs::create_dir_all(&project_path).await?;
 
-        // Step 5: Clone each selected repository into the project directory
-        let clone_template = app
-            .config
-            .settings
-            .clone_command
-            .as_deref()
-            .unwrap_or(template_command::DEFAULT_CLONE_COMMAND);
+        clone_repos_into(app, &selected_repos, &project_path).await?;
 
-        let concurrency_limit = Arc::new(tokio::sync::Semaphore::new(5));
-        let mut handles = Vec::new();
-
-        for repo in &selected_repos {
-            let repo = repo.clone();
-            let project_path = project_path.clone();
-            let clone_template = clone_template.to_string();
-            let concurrency = Arc::clone(&concurrency_limit);
-            let custom_command = app.custom_command();
-
-            let handle = tokio::spawn(async move {
-                let permit = concurrency.acquire().await?;
-
-                let clone_path = project_path.join(&repo.repo_name);
-
-                if clone_path.exists() {
-                    eprintln!("  {} already exists, skipping", repo.repo_name);
-                    drop(permit);
-                    return Ok::<(), anyhow::Error>(());
-                }
-
-                eprintln!("  cloning {}...", repo.to_rel_path().display());
-
-                let path_str = clone_path.display().to_string();
-                let context = HashMap::from([
-                    ("ssh_url", repo.ssh_url.as_str()),
-                    ("path", path_str.as_str()),
-                ]);
-
-                let output =
-                    template_command::render_and_execute(&clone_template, context).await?;
-
-                if !output.status.success() {
-                    let stderr = std::str::from_utf8(&output.stderr).unwrap_or_default();
-                    anyhow::bail!("failed to clone {}: {}", repo.repo_name, stderr);
-                }
-
-                custom_command
-                    .execute_post_clone_command(&clone_path)
-                    .await?;
-
-                drop(permit);
-                Ok(())
-            });
-
-            handles.push(handle);
-        }
-
-        let results = futures::future::join_all(handles).await;
-        for res in results {
-            match res {
-                Ok(Ok(())) => {}
-                Ok(Err(e)) => {
-                    tracing::error!("clone error: {}", e);
-                    eprintln!("error: {}", e);
-                }
-                Err(e) => {
-                    tracing::error!("task error: {}", e);
-                    eprintln!("error: {}", e);
-                }
-            }
-        }
-
-        // Step 6: Apply template if requested
+        // Apply template if requested
         let templates_dir = get_templates_dir(app);
         let template = match self.template.take() {
             Some(name) => {
-                let templates = list_templates(&templates_dir)?;
+                let templates = list_subdirectories(&templates_dir)?;
                 Some(
                     templates
                         .into_iter()
@@ -396,7 +377,7 @@ impl ProjectCreateCommand {
                 )
             }
             None => {
-                let templates = list_templates(&templates_dir)?;
+                let templates = list_subdirectories(&templates_dir)?;
                 if !templates.is_empty() {
                     eprintln!("Select a project template (Esc to skip):");
                     app.interactive().interactive_search_items(&templates)?
@@ -418,7 +399,6 @@ impl ProjectCreateCommand {
             selected_repos.len()
         );
 
-        // Step 6: Enter shell or print path
         if !self.no_shell {
             app.shell().spawn_shell_at(&project_path).await?;
         } else {
@@ -432,7 +412,7 @@ impl ProjectCreateCommand {
 impl ProjectAddCommand {
     async fn execute(&mut self, app: &'static App) -> anyhow::Result<()> {
         let projects_dir = get_projects_dir(app);
-        let projects = list_existing_projects(&projects_dir)?;
+        let projects = list_subdirectories(&projects_dir)?;
 
         if projects.is_empty() {
             anyhow::bail!(
@@ -441,35 +421,10 @@ impl ProjectAddCommand {
             );
         }
 
-        // Step 1: Select project
-        let project = match self.name.take() {
-            Some(name) => projects
-                .iter()
-                .find(|p| p.name == name)
-                .ok_or(anyhow::anyhow!("project '{}' not found", name))?
-                .clone(),
-            None => app
-                .interactive()
-                .interactive_search_items(&projects)?
-                .ok_or(anyhow::anyhow!("no project selected"))?,
-        };
+        let project = select_project(app, self.name.take(), &projects)?;
 
-        // Step 2: Load repositories
-        let repositories = if !self.no_cache {
-            match app.cache().get().await? {
-                Some(repos) => repos,
-                None => {
-                    eprintln!("fetching repositories...");
-                    let repositories = app.projects_list().get_projects().await?;
-                    app.cache().update(&repositories).await?;
-                    repositories
-                }
-            }
-        } else {
-            app.projects_list().get_projects().await?
-        };
+        let repositories = load_repositories(app, !self.no_cache).await?;
 
-        // Step 3: Multi-select repositories
         eprintln!("Select repositories to add (Tab to toggle, Enter to confirm):");
         let selected_repos = app
             .interactive()
@@ -479,76 +434,7 @@ impl ProjectAddCommand {
             anyhow::bail!("no repositories selected");
         }
 
-        // Step 4: Clone each selected repository into the project directory
-        let clone_template = app
-            .config
-            .settings
-            .clone_command
-            .as_deref()
-            .unwrap_or(template_command::DEFAULT_CLONE_COMMAND);
-
-        let concurrency_limit = Arc::new(tokio::sync::Semaphore::new(5));
-        let mut handles = Vec::new();
-
-        for repo in &selected_repos {
-            let repo = repo.clone();
-            let project_path = project.path.clone();
-            let clone_template = clone_template.to_string();
-            let concurrency = Arc::clone(&concurrency_limit);
-            let custom_command = app.custom_command();
-
-            let handle = tokio::spawn(async move {
-                let permit = concurrency.acquire().await?;
-
-                let clone_path = project_path.join(&repo.repo_name);
-
-                if clone_path.exists() {
-                    eprintln!("  {} already exists, skipping", repo.repo_name);
-                    drop(permit);
-                    return Ok::<(), anyhow::Error>(());
-                }
-
-                eprintln!("  cloning {}...", repo.to_rel_path().display());
-
-                let path_str = clone_path.display().to_string();
-                let context = HashMap::from([
-                    ("ssh_url", repo.ssh_url.as_str()),
-                    ("path", path_str.as_str()),
-                ]);
-
-                let output =
-                    template_command::render_and_execute(&clone_template, context).await?;
-
-                if !output.status.success() {
-                    let stderr = std::str::from_utf8(&output.stderr).unwrap_or_default();
-                    anyhow::bail!("failed to clone {}: {}", repo.repo_name, stderr);
-                }
-
-                custom_command
-                    .execute_post_clone_command(&clone_path)
-                    .await?;
-
-                drop(permit);
-                Ok(())
-            });
-
-            handles.push(handle);
-        }
-
-        let results = futures::future::join_all(handles).await;
-        for res in results {
-            match res {
-                Ok(Ok(())) => {}
-                Ok(Err(e)) => {
-                    tracing::error!("clone error: {}", e);
-                    eprintln!("error: {}", e);
-                }
-                Err(e) => {
-                    tracing::error!("task error: {}", e);
-                    eprintln!("error: {}", e);
-                }
-            }
-        }
+        clone_repos_into(app, &selected_repos, &project.path).await?;
 
         eprintln!(
             "added {} repositories to project '{}'",
@@ -563,23 +449,13 @@ impl ProjectAddCommand {
 impl ProjectDeleteCommand {
     async fn execute(&mut self, app: &'static App) -> anyhow::Result<()> {
         let projects_dir = get_projects_dir(app);
-        let projects = list_existing_projects(&projects_dir)?;
+        let projects = list_subdirectories(&projects_dir)?;
 
         if projects.is_empty() {
             anyhow::bail!("no projects found in {}", projects_dir.display());
         }
 
-        let project = match self.name.take() {
-            Some(name) => projects
-                .iter()
-                .find(|p| p.name == name)
-                .ok_or(anyhow::anyhow!("project '{}' not found", name))?
-                .clone(),
-            None => app
-                .interactive()
-                .interactive_search_items(&projects)?
-                .ok_or(anyhow::anyhow!("no project selected"))?,
-        };
+        let project = select_project(app, self.name.take(), &projects)?;
 
         if !self.force {
             eprint!(

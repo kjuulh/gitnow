@@ -2,7 +2,7 @@ use std::{collections::BTreeMap, io::IsTerminal};
 
 use crate::{
     app::App,
-    cache::CacheApp,
+    cache::{load_repositories, CacheApp},
     components::inline_command::InlineCommand,
     custom_command::CustomCommandApp,
     fuzzy_matcher::{FuzzyMatcher, FuzzyMatcherApp},
@@ -34,29 +34,13 @@ impl RootCommand {
     ) -> anyhow::Result<()> {
         tracing::debug!("executing");
 
-        let repositories = if !force_cache_update {
-            if cache {
-                match self.app.cache().get().await? {
-                    Some(repos) => repos,
-                    None => {
-                        tracing::info!("finding repositories...");
-                        let repositories = self.app.projects_list().get_projects().await?;
-
-                        self.app.cache().update(&repositories).await?;
-
-                        repositories
-                    }
-                }
-            } else {
-                self.app.projects_list().get_projects().await?
-            }
-        } else {
+        let repositories = if force_cache_update {
             tracing::info!("forcing cache update...");
             let repositories = self.app.projects_list().get_projects().await?;
-
             self.app.cache().update(&repositories).await?;
-
             repositories
+        } else {
+            load_repositories(self.app, cache).await?
         };
 
         let repo = match search {
@@ -149,42 +133,21 @@ impl RootCommand {
     }
 }
 
-trait StringExt {
-    fn as_str_vec(&self) -> Vec<&str>;
-}
-
-impl StringExt for Vec<String> {
-    fn as_str_vec(&self) -> Vec<&str> {
-        self.iter().map(|r| r.as_ref()).collect()
-    }
-}
-
-impl StringExt for Vec<&String> {
-    fn as_str_vec(&self) -> Vec<&str> {
-        self.iter().map(|r| r.as_ref()).collect()
-    }
-}
-
 pub trait RepositoryMatcher {
     fn match_repositories(&self, pattern: &str, repositories: &[Repository]) -> Vec<Repository>;
 }
 
 impl RepositoryMatcher for FuzzyMatcher {
     fn match_repositories(&self, pattern: &str, repositories: &[Repository]) -> Vec<Repository> {
-        let haystack = repositories
+        let haystack: BTreeMap<String, &Repository> = repositories
             .iter()
             .map(|r| (r.to_rel_path().display().to_string(), r))
-            .collect::<BTreeMap<_, _>>();
-        let haystack_keys = haystack.keys().collect::<Vec<_>>();
-        let haystack_keys = haystack_keys.as_str_vec();
+            .collect();
+        let keys: Vec<&str> = haystack.keys().map(|s| s.as_str()).collect();
 
-        let res = self.match_pattern(pattern, &haystack_keys);
-
-        let matched_repos = res
+        self.match_pattern(pattern, &keys)
             .into_iter()
-            .filter_map(|repo_key| haystack.get(repo_key).map(|r| (*r).to_owned()))
-            .collect::<Vec<_>>();
-
-        matched_repos
+            .filter_map(|key| haystack.get(key).map(|r| (*r).to_owned()))
+            .collect()
     }
 }

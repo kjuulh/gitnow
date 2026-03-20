@@ -2,11 +2,10 @@ use std::io::IsTerminal;
 
 use crate::{
     app::App,
-    cache::CacheApp,
+    cache::load_repositories,
     components::inline_command::InlineCommand,
     fuzzy_matcher::FuzzyMatcherApp,
     interactive::{InteractiveApp, StringItem},
-    projects_list::ProjectsListApp,
     shell::ShellApp,
     worktree::{sanitize_branch_name, WorktreeApp},
 };
@@ -35,19 +34,7 @@ pub struct WorktreeCommand {
 impl WorktreeCommand {
     pub async fn execute(&mut self, app: &'static App) -> anyhow::Result<()> {
         // Step 1: Load repositories
-        let repositories = if !self.no_cache {
-            match app.cache().get().await? {
-                Some(repos) => repos,
-                None => {
-                    tracing::info!("finding repositories...");
-                    let repositories = app.projects_list().get_projects().await?;
-                    app.cache().update(&repositories).await?;
-                    repositories
-                }
-            }
-        } else {
-            app.projects_list().get_projects().await?
-        };
+        let repositories = load_repositories(app, !self.no_cache).await?;
 
         // Step 2: Select repository
         let repo = match &self.search {

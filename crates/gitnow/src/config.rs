@@ -63,37 +63,26 @@ pub struct WorktreeSettings {
     pub list_branches_command: Option<String>,
 }
 
+/// A list of shell commands that can be specified as a single string or an array in TOML.
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 #[serde(untagged)]
-pub enum PostUpdateCommand {
+pub enum CommandList {
     Single(String),
     Multiple(Vec<String>),
 }
 
-impl PostUpdateCommand {
+impl CommandList {
     pub fn get_commands(&self) -> Vec<String> {
         match self.clone() {
-            PostUpdateCommand::Single(item) => vec![item],
-            PostUpdateCommand::Multiple(items) => items,
+            CommandList::Single(item) => vec![item],
+            CommandList::Multiple(items) => items,
         }
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
-#[serde(untagged)]
-pub enum PostCloneCommand {
-    Single(String),
-    Multiple(Vec<String>),
-}
-
-impl PostCloneCommand {
-    pub fn get_commands(&self) -> Vec<String> {
-        match self.clone() {
-            PostCloneCommand::Single(item) => vec![item],
-            PostCloneCommand::Multiple(items) => items,
-        }
-    }
-}
+/// Backwards-compatible type aliases.
+pub type PostCloneCommand = CommandList;
+pub type PostUpdateCommand = CommandList;
 
 #[derive(Debug, Default, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Projects {
@@ -229,35 +218,28 @@ pub struct GitHub {
     pub organisations: Vec<GitHubOrganisation>,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
-pub struct GitHubUser(String);
+/// Generates a newtype wrapper around `String` with `From` impls for owned and borrowed access.
+macro_rules! string_newtype {
+    ($name:ident) => {
+        #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+        pub struct $name(String);
 
-impl From<GitHubUser> for String {
-    fn from(value: GitHubUser) -> Self {
-        value.0
-    }
+        impl From<$name> for String {
+            fn from(value: $name) -> Self {
+                value.0
+            }
+        }
+
+        impl<'a> From<&'a $name> for &'a str {
+            fn from(value: &'a $name) -> Self {
+                value.0.as_str()
+            }
+        }
+    };
 }
 
-impl<'a> From<&'a GitHubUser> for &'a str {
-    fn from(value: &'a GitHubUser) -> Self {
-        value.0.as_str()
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
-pub struct GitHubOrganisation(String);
-
-impl From<GitHubOrganisation> for String {
-    fn from(value: GitHubOrganisation) -> Self {
-        value.0
-    }
-}
-
-impl<'a> From<&'a GitHubOrganisation> for &'a str {
-    fn from(value: &'a GitHubOrganisation) -> Self {
-        value.0.as_str()
-    }
-}
+string_newtype!(GitHubUser);
+string_newtype!(GitHubOrganisation);
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Gitea {
@@ -289,34 +271,8 @@ pub enum GitHubAccessToken {
     Env { env: String },
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
-pub struct GiteaUser(String);
-
-impl From<GiteaUser> for String {
-    fn from(value: GiteaUser) -> Self {
-        value.0
-    }
-}
-
-impl<'a> From<&'a GiteaUser> for &'a str {
-    fn from(value: &'a GiteaUser) -> Self {
-        value.0.as_str()
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
-pub struct GiteaOrganisation(String);
-impl From<GiteaOrganisation> for String {
-    fn from(value: GiteaOrganisation) -> Self {
-        value.0
-    }
-}
-
-impl<'a> From<&'a GiteaOrganisation> for &'a str {
-    fn from(value: &'a GiteaOrganisation) -> Self {
-        value.0.as_str()
-    }
-}
+string_newtype!(GiteaUser);
+string_newtype!(GiteaOrganisation);
 
 impl Config {
     pub async fn from_file(file_path: &Path) -> anyhow::Result<Config> {
