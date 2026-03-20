@@ -22,6 +22,6 @@ description = "Build a local snapshot release without publishing"
 [tasks.release-docker]
 run = """
 docker build -f Dockerfile.release -t gitnow-release .
-docker run --rm -v "$PWD:/build" -w /build -e GITEA_TOKEN gitnow-release release --snapshot --clean
+docker run --rm gitnow-release release-snapshot
 """
 description = "Test the release Docker image locally (snapshot mode)"

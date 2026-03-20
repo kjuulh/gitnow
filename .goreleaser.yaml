@@ -17,7 +17,6 @@ builds:
     flags:
       - --release
       - -p=gitnow
-      - --features=vendored-openssl
 
 archives:
   - id: gitnow
