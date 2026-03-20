@@ -24,9 +24,10 @@ uuid = { version = "1.7.0", features = ["v4"] }
 async-trait = "0.1.82"
 toml = "0.8.19"
 
-gitea-client = { version = "1.25.2", default-features = false, features = ["rustls"] }
+gitea-client = { git = "https://git.kjuulh.io/kjuulh/gitea-rs.git", default-features = false, features = ["rustls-ring"] }
+reqwest = { version = "0.13", default-features = false, features = ["__rustls", "json", "webpki-roots"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "logging", "std", "tls12"] }
 url = "2.5.2"
-octocrab = "0.43.0"
 dirs = "6.0.0"
 prost = "0.13.2"
 prost-types = "0.13.2"
