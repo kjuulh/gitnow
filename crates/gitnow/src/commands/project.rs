@@ -30,6 +30,8 @@ pub struct ProjectCommand {
 enum ProjectSubcommand {
     /// Create a new project with selected repositories
     Create(ProjectCreateCommand),
+    /// Add repositories to an existing project
+    Add(ProjectAddCommand),
     /// Delete an existing project
     Delete(ProjectDeleteCommand),
 }
@@ -47,6 +49,17 @@ pub struct ProjectCreateCommand {
     /// Skip spawning a shell in the project directory
     #[arg(long = "no-shell", default_value = "false")]
     no_shell: bool,
+}
+
+#[derive(clap::Parser)]
+pub struct ProjectAddCommand {
+    /// Project name to add repositories to
+    #[arg()]
+    name: Option<String>,
+
+    /// Skip cache when fetching repositories
+    #[arg(long = "no-cache", default_value = "false")]
+    no_cache: bool,
 }
 
 #[derive(clap::Parser)]
@@ -112,6 +125,7 @@ impl ProjectCommand {
     pub async fn execute(&mut self, app: &'static App) -> anyhow::Result<()> {
         match self.command.take() {
             Some(ProjectSubcommand::Create(mut create)) => create.execute(app).await,
+            Some(ProjectSubcommand::Add(mut add)) => add.execute(app).await,
             Some(ProjectSubcommand::Delete(mut delete)) => delete.execute(app).await,
             None => self.open_existing(app).await,
         }
@@ -310,6 +324,137 @@ impl ProjectCreateCommand {
         } else {
             println!("{}", project_path.display());
         }
+
+        Ok(())
+    }
+}
+
+impl ProjectAddCommand {
+    async fn execute(&mut self, app: &'static App) -> anyhow::Result<()> {
+        let projects_dir = get_projects_dir(app);
+        let projects = list_existing_projects(&projects_dir)?;
+
+        if projects.is_empty() {
+            anyhow::bail!(
+                "no projects found in {}. Use 'gitnow project create' to create one.",
+                projects_dir.display()
+            );
+        }
+
+        // Step 1: Select project
+        let project = match self.name.take() {
+            Some(name) => projects
+                .iter()
+                .find(|p| p.name == name)
+                .ok_or(anyhow::anyhow!("project '{}' not found", name))?
+                .clone(),
+            None => app
+                .interactive()
+                .interactive_search_items(&projects)?
+                .ok_or(anyhow::anyhow!("no project selected"))?,
+        };
+
+        // Step 2: Load repositories
+        let repositories = if !self.no_cache {
+            match app.cache().get().await? {
+                Some(repos) => repos,
+                None => {
+                    eprintln!("fetching repositories...");
+                    let repositories = app.projects_list().get_projects().await?;
+                    app.cache().update(&repositories).await?;
+                    repositories
+                }
+            }
+        } else {
+            app.projects_list().get_projects().await?
+        };
+
+        // Step 3: Multi-select repositories
+        eprintln!("Select repositories to add (Tab to toggle, Enter to confirm):");
+        let selected_repos = app
+            .interactive()
+            .interactive_multi_search(&repositories)?;
+
+        if selected_repos.is_empty() {
+            anyhow::bail!("no repositories selected");
+        }
+
+        // Step 4: Clone each selected repository into the project directory
+        let clone_template = app
+            .config
+            .settings
+            .clone_command
+            .as_deref()
+            .unwrap_or(template_command::DEFAULT_CLONE_COMMAND);
+
+        let concurrency_limit = Arc::new(tokio::sync::Semaphore::new(5));
+        let mut handles = Vec::new();
+
+        for repo in &selected_repos {
+            let repo = repo.clone();
+            let project_path = project.path.clone();
+            let clone_template = clone_template.to_string();
+            let concurrency = Arc::clone(&concurrency_limit);
+            let custom_command = app.custom_command();
+
+            let handle = tokio::spawn(async move {
+                let permit = concurrency.acquire().await?;
+
+                let clone_path = project_path.join(&repo.repo_name);
+
+                if clone_path.exists() {
+                    eprintln!("  {} already exists, skipping", repo.repo_name);
+                    drop(permit);
+                    return Ok::<(), anyhow::Error>(());
+                }
+
+                eprintln!("  cloning {}...", repo.to_rel_path().display());
+
+                let path_str = clone_path.display().to_string();
+                let context = HashMap::from([
+                    ("ssh_url", repo.ssh_url.as_str()),
+                    ("path", path_str.as_str()),
+                ]);
+
+                let output =
+                    template_command::render_and_execute(&clone_template, context).await?;
+
+                if !output.status.success() {
+                    let stderr = std::str::from_utf8(&output.stderr).unwrap_or_default();
+                    anyhow::bail!("failed to clone {}: {}", repo.repo_name, stderr);
+                }
+
+                custom_command
+                    .execute_post_clone_command(&clone_path)
+                    .await?;
+
+                drop(permit);
+                Ok(())
+            });
+
+            handles.push(handle);
+        }
+
+        let results = futures::future::join_all(handles).await;
+        for res in results {
+            match res {
+                Ok(Ok(())) => {}
+                Ok(Err(e)) => {
+                    tracing::error!("clone error: {}", e);
+                    eprintln!("error: {}", e);
+                }
+                Err(e) => {
+                    tracing::error!("task error: {}", e);
+                    eprintln!("error: {}", e);
+                }
+            }
+        }
+
+        eprintln!(
+            "added {} repositories to project '{}'",
+            selected_repos.len(),
+            project.name
+        );
 
         Ok(())
     }
