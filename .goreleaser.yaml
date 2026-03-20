@@ -54,8 +54,6 @@ homebrew_casks:
       owner: kjuulh
       name: homebrew-tap
       token: "{{ .Env.RELEASE_TOKEN }}"
-      git:
-        url: "https://git.kjuulh.io/kjuulh/homebrew-tap.git"
     url:
       template: "https://git.kjuulh.io/kjuulh/gitnow/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
     homepage: "https://gitnow-client.prod.kjuulh.app"
