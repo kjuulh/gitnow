@@ -7,8 +7,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install mise
+ENV MISE_INSTALL_PATH="/usr/local/bin/mise"
 RUN curl https://mise.run | sh
-ENV PATH="/root/.local/bin:${PATH}"
 
 WORKDIR /build
 COPY mise.toml .
