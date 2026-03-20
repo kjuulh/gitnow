@@ -47,6 +47,16 @@ impl Interactive {
 
         App::new(self.app, items).run(terminal)
     }
+
+    pub fn interactive_multi_search<T: Searchable>(
+        &mut self,
+        items: &[T],
+    ) -> anyhow::Result<Vec<T>> {
+        let backend = TermwizBackend::new().map_err(|e| anyhow::anyhow!(e.to_string()))?;
+        let terminal = Terminal::new(backend)?;
+
+        multi_select::MultiSelectApp::new(self.app, items).run(terminal)
+    }
 }
 
 pub trait InteractiveApp {
@@ -194,6 +204,183 @@ mod app {
             ]));
 
             frame.render_widget(input, input_area);
+        }
+    }
+}
+
+pub mod multi_select {
+    use std::collections::HashSet;
+
+    use crossterm::event::KeyModifiers;
+    use ratatui::{
+        crossterm::event::{self, Event, KeyCode},
+        layout::{Constraint, Layout},
+        prelude::TermwizBackend,
+        style::{Style, Stylize},
+        text::{Line, Span},
+        widgets::{ListItem, ListState, Paragraph, StatefulWidget},
+        Frame, Terminal,
+    };
+
+    use crate::fuzzy_matcher::FuzzyMatcherApp;
+
+    use super::Searchable;
+
+    pub struct MultiSelectApp<'a, T: Searchable> {
+        app: &'static crate::app::App,
+        items: &'a [T],
+        current_search: String,
+        matched_items: Vec<T>,
+        selected_labels: HashSet<String>,
+        list: ListState,
+    }
+
+    impl<'a, T: Searchable> MultiSelectApp<'a, T> {
+        pub fn new(app: &'static crate::app::App, items: &'a [T]) -> Self {
+            Self {
+                app,
+                items,
+                current_search: String::default(),
+                matched_items: Vec::default(),
+                selected_labels: HashSet::new(),
+                list: ListState::default(),
+            }
+        }
+
+        fn update_matched_items(&mut self) {
+            let labels: Vec<String> = self.items.iter().map(|i| i.display_label()).collect();
+            let label_refs: Vec<&str> = labels.iter().map(|s| s.as_str()).collect();
+
+            let matched_keys = self
+                .app
+                .fuzzy_matcher()
+                .match_pattern(&self.current_search, &label_refs);
+
+            self.matched_items = matched_keys
+                .into_iter()
+                .filter_map(|key| {
+                    self.items
+                        .iter()
+                        .find(|i| i.display_label() == key)
+                        .cloned()
+                })
+                .collect();
+
+            if self.list.selected().is_none() {
+                self.list.select_first();
+            }
+        }
+
+        fn toggle_current(&mut self) {
+            if let Some(selected) = self.list.selected() {
+                if let Some(item) = self.matched_items.get(selected) {
+                    let label = item.display_label();
+                    if !self.selected_labels.remove(&label) {
+                        self.selected_labels.insert(label);
+                    }
+                }
+            }
+        }
+
+        pub fn run(
+            mut self,
+            mut terminal: Terminal<TermwizBackend>,
+        ) -> anyhow::Result<Vec<T>> {
+            self.update_matched_items();
+
+            loop {
+                terminal.draw(|frame| self.draw(frame))?;
+
+                if let Event::Key(key) = event::read()? {
+                    if let KeyCode::Char('c') = key.code
+                        && key.modifiers.contains(KeyModifiers::CONTROL)
+                    {
+                        return Ok(Vec::new());
+                    }
+
+                    match key.code {
+                        KeyCode::Tab => {
+                            self.toggle_current();
+                        }
+                        KeyCode::Char(letter) => {
+                            self.current_search.push(letter);
+                            self.update_matched_items();
+                        }
+                        KeyCode::Backspace => {
+                            if !self.current_search.is_empty() {
+                                let _ =
+                                    self.current_search.remove(self.current_search.len() - 1);
+                                self.update_matched_items();
+                            }
+                        }
+                        KeyCode::Esc => {
+                            return Ok(Vec::new());
+                        }
+                        KeyCode::Enter => {
+                            terminal.resize(ratatui::layout::Rect::ZERO)?;
+                            let selected: Vec<T> = self
+                                .items
+                                .iter()
+                                .filter(|i| self.selected_labels.contains(&i.display_label()))
+                                .cloned()
+                                .collect();
+                            return Ok(selected);
+                        }
+                        KeyCode::Up => self.list.select_next(),
+                        KeyCode::Down => self.list.select_previous(),
+                        _ => {}
+                    }
+                }
+            }
+        }
+
+        fn draw(&mut self, frame: &mut Frame) {
+            let vertical = Layout::vertical([
+                Constraint::Percentage(100),
+                Constraint::Min(1),
+                Constraint::Min(1),
+            ]);
+            let [list_area, input_area, hint_area] = vertical.areas(frame.area());
+
+            let list_items: Vec<ListItem> = self
+                .matched_items
+                .iter()
+                .map(|i| {
+                    let label = i.display_label();
+                    let marker = if self.selected_labels.contains(&label) {
+                        "[x] "
+                    } else {
+                        "[ ] "
+                    };
+                    ListItem::from(Line::from(vec![
+                        Span::from(marker).green(),
+                        Span::from(label),
+                    ]))
+                })
+                .collect();
+
+            let list = ratatui::widgets::List::new(list_items)
+                .direction(ratatui::widgets::ListDirection::BottomToTop)
+                .scroll_padding(3)
+                .highlight_symbol("> ")
+                .highlight_spacing(ratatui::widgets::HighlightSpacing::Always)
+                .highlight_style(Style::default().bold().white());
+
+            StatefulWidget::render(list, list_area, frame.buffer_mut(), &mut self.list);
+
+            let input = Paragraph::new(Line::from(vec![
+                Span::from("> ").blue(),
+                Span::from(self.current_search.as_str()),
+                Span::from(" ").on_white(),
+            ]));
+            frame.render_widget(input, input_area);
+
+            let count = self.selected_labels.len();
+            let hint = Paragraph::new(Line::from(vec![
+                Span::from(format!("{count} selected")).dim(),
+                Span::from(" | Tab: toggle, Enter: confirm").dim(),
+            ]));
+            frame.render_widget(hint, hint_area);
         }
     }
 }

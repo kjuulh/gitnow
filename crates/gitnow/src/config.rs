@@ -30,6 +30,17 @@ pub struct Settings {
     /// Worktree configuration.
     #[serde(default)]
     pub worktree: Option<WorktreeSettings>,
+
+    /// Project scratch-pad configuration.
+    #[serde(default)]
+    pub project: Option<ProjectSettings>,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub struct ProjectSettings {
+    /// Directory where projects are stored.
+    /// Default: "~/.gitnow/projects"
+    pub directory: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
@@ -424,6 +435,7 @@ mod test {
                     post_clone_command: None,
                     clone_command: None,
                     worktree: None,
+                    project: None,
                 }
             },
             config
@@ -453,6 +465,7 @@ mod test {
                     post_clone_command: None,
                     clone_command: None,
                     worktree: None,
+                    project: None,
                 }
             },
             config

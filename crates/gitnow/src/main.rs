@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use anyhow::Context;
 use clap::{Parser, Subcommand};
 use commands::{
-    clone::CloneCommand, root::RootCommand, shell::Shell, update::Update,
+    clone::CloneCommand, project::ProjectCommand, root::RootCommand, shell::Shell, update::Update,
     worktree::WorktreeCommand,
 };
 use config::Config;
@@ -61,6 +61,8 @@ enum Commands {
     Update(Update),
     Clone(CloneCommand),
     Worktree(WorktreeCommand),
+    /// Manage scratch-pad projects with multiple repositories
+    Project(ProjectCommand),
 }
 
 const DEFAULT_CONFIG_PATH: &str = ".config/gitnow/gitnow.toml";
@@ -107,6 +109,9 @@ async fn main() -> anyhow::Result<()> {
             }
             Commands::Worktree(mut wt) => {
                 wt.execute(app).await?;
+            }
+            Commands::Project(mut project) => {
+                project.execute(app).await?;
             }
         },
         None => {
