@@ -58,3 +58,7 @@ brews:
     description: "Git Now is a utility for easily navigating git projects from common upstream providers."
     install: |
       bin.install "gitnow"
+    caveats: |
+      To enable shell integration, add this to your .zshrc:
+
+        eval "$(gitnow init zsh)"

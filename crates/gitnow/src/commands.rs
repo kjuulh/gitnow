@@ -1,6 +1,7 @@
 pub mod project;
 pub mod root;
 pub mod shell;
+pub mod skill;
 pub mod update;
 pub mod worktree;
 pub mod clone {

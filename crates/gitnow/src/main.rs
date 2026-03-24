@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use anyhow::Context;
 use clap::{Parser, Subcommand};
 use commands::{
-    clone::CloneCommand, project::ProjectCommand, root::RootCommand, shell::Shell, update::Update,
-    worktree::WorktreeCommand,
+    clone::CloneCommand, project::ProjectCommand, root::RootCommand, shell::Shell,
+    skill::SkillCommand, update::Update, worktree::WorktreeCommand,
 };
 use config::Config;
 use tracing::level_filters::LevelFilter;
@@ -29,7 +29,13 @@ mod template_command;
 mod worktree;
 
 #[derive(Parser)]
-#[command(author, version, about, long_about = Some("Navigate git projects at the speed of thought"))]
+#[command(
+    author,
+    version,
+    about,
+    long_about = Some("Navigate git projects at the speed of thought"),
+    after_help = "TIP: LLM/AI agents should run `gitnow skill` for a complete machine-readable reference."
+)]
 struct Command {
     #[command(subcommand)]
     command: Option<Commands>,
@@ -71,6 +77,8 @@ enum Commands {
     Worktree(WorktreeCommand),
     /// Manage scratch-pad projects with multiple repositories
     Project(ProjectCommand),
+    /// Print an LLM-readable reference of all gitnow capabilities
+    Skill(SkillCommand),
 }
 
 const DEFAULT_CONFIG_PATH: &str = ".config/gitnow/gitnow.toml";
@@ -130,6 +138,9 @@ async fn main() -> anyhow::Result<()> {
             }
             Commands::Project(mut project) => {
                 project.execute(app, &chooser).await?;
+            }
+            Commands::Skill(skill) => {
+                skill.execute().await?;
             }
         },
         None => {

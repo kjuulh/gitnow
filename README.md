@@ -30,7 +30,7 @@ cargo binstall gitnow
 gitnow
 
 # Or install gitnow scripts (in your .bashrc, .zshrc) this will use native shell commands to move you around
-eval $(gitnow init zsh)
+eval "$(gitnow init zsh)"
 git-now # Long
 gn # Short alias
 ```
@@ -165,7 +165,7 @@ Commands that navigate to a directory (`gitnow`, `gitnow project`, `gitnow proje
 The recommended way to use gitnow is with shell integration, which uses a **chooser file** to communicate the selected path back to your shell:
 
 ```bash
-eval $(gitnow init zsh)
+eval "$(gitnow init zsh)"
 git-now    # or gn
 ```
 
