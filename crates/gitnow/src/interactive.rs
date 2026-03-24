@@ -317,6 +317,10 @@ pub mod multi_select {
                             return Ok(Vec::new());
                         }
                         KeyCode::Enter => {
+                            if self.selected_labels.is_empty() {
+                                // Don't allow confirming with no selections
+                                continue;
+                            }
                             terminal.resize(ratatui::layout::Rect::ZERO)?;
                             let selected: Vec<T> = self
                                 .items

@@ -29,6 +29,7 @@ gitnow project [SEARCH] [OPTIONS]    # open an existing scratch-pad project
 gitnow project create [NAME]         # create a new multi-repo project
 gitnow project add [NAME]            # add repositories to a project
 gitnow project delete [NAME]         # delete a project
+gitnow project list [OPTIONS]        # list all projects and their repos
 gitnow init zsh                      # print zsh shell integration script
 gitnow skill                         # print this reference (you are here)
 ```
@@ -125,18 +126,25 @@ or fuzzy match on SEARCH).
 
 #### `gitnow project create [NAME] [OPTIONS]`
 
-Create a new project directory, interactively select repositories to clone into it,
+Create a new project directory, select repositories to clone into it,
 and optionally apply a template.
 
 | Flag                | Description                                          |
 |---------------------|------------------------------------------------------|
 | `[NAME]`            | Project name (prompted if omitted)                   |
+| `-r, --repos`       | Repositories to include (fuzzy-matched). Repeatable: `--repos foo --repos bar`. Skips interactive picker when provided. |
 | `-t, --template`    | Template name to bootstrap from                      |
+| `--no-template`     | Skip template selection entirely                     |
 | `--no-cache`        | Skip local cache when listing repos                  |
 | `--no-shell`        | Print path instead of spawning a shell               |
 
 Templates live in `~/.gitnow/templates/` (or the configured directory). Each
 subdirectory is a template; its contents are copied into the new project.
+
+**Non-interactive usage:**
+```
+gitnow project create my-feature --repos repo-a --repos repo-b --no-template --no-shell
+```
 
 #### `gitnow project add [NAME] [OPTIONS]`
 
@@ -145,7 +153,22 @@ Add more repositories to an existing project.
 | Flag         | Description                              |
 |--------------|------------------------------------------|
 | `[NAME]`     | Project name (interactive if omitted)    |
+| `-r, --repos`| Repositories to add (fuzzy-matched). Repeatable. Skips interactive picker when provided. |
 | `--no-cache` | Skip local cache when listing repos      |
+
+**Non-interactive usage:**
+```
+gitnow project add my-feature --repos repo-c --repos repo-d
+```
+
+#### `gitnow project list [OPTIONS]`
+
+List all projects and optionally show their repositories.
+
+| Flag         | Description                              |
+|--------------|------------------------------------------|
+| `--repos`    | Show repository details for each project |
+| `--json`     | Output as JSON                           |
 
 #### `gitnow project delete [NAME] [OPTIONS]`
 

@@ -7,11 +7,14 @@ use crate::{
     cache::load_repositories,
     chooser::Chooser,
     custom_command::CustomCommandApp,
+    fuzzy_matcher::FuzzyMatcherApp,
     interactive::{InteractiveApp, Searchable},
     project_metadata::{ProjectMetadata, RepoEntry},
     shell::ShellApp,
     template_command,
 };
+
+use super::root::RepositoryMatcher;
 
 #[derive(clap::Parser)]
 pub struct ProjectCommand {
@@ -35,6 +38,8 @@ enum ProjectSubcommand {
     Add(ProjectAddCommand),
     /// Delete an existing project
     Delete(ProjectDeleteCommand),
+    /// List all projects and their repositories
+    List(ProjectListCommand),
 }
 
 #[derive(clap::Parser)]
@@ -46,6 +51,15 @@ pub struct ProjectCreateCommand {
     /// Bootstrap from a template in the templates directory
     #[arg(long = "template", short = 't')]
     template: Option<String>,
+
+    /// Skip template selection entirely (even if templates exist)
+    #[arg(long = "no-template", default_value = "false")]
+    no_template: bool,
+
+    /// Repositories to include (fuzzy-matched against the cache). Can be
+    /// specified multiple times: --repos foo --repos bar
+    #[arg(long = "repos", short = 'r')]
+    repos: Vec<String>,
 
     /// Skip cache when fetching repositories
     #[arg(long = "no-cache", default_value = "false")]
@@ -62,9 +76,25 @@ pub struct ProjectAddCommand {
     #[arg()]
     name: Option<String>,
 
+    /// Repositories to add (fuzzy-matched against the cache). Can be
+    /// specified multiple times: --repos foo --repos bar
+    #[arg(long = "repos", short = 'r')]
+    repos: Vec<String>,
+
     /// Skip cache when fetching repositories
     #[arg(long = "no-cache", default_value = "false")]
     no_cache: bool,
+}
+
+#[derive(clap::Parser)]
+pub struct ProjectListCommand {
+    /// Show repository details for each project
+    #[arg(long = "repos", default_value = "false")]
+    repos: bool,
+
+    /// Output as JSON
+    #[arg(long = "json", default_value = "false")]
+    json: bool,
 }
 
 #[derive(clap::Parser)]
@@ -284,6 +314,7 @@ impl ProjectCommand {
             Some(ProjectSubcommand::Create(mut create)) => create.execute(app, chooser).await,
             Some(ProjectSubcommand::Add(mut add)) => add.execute(app).await,
             Some(ProjectSubcommand::Delete(mut delete)) => delete.execute(app).await,
+            Some(ProjectSubcommand::List(list)) => list.execute(app).await,
             None => self.open_existing(app, chooser).await,
         }
     }
@@ -368,10 +399,25 @@ impl ProjectCreateCommand {
 
         let repositories = load_repositories(app, !self.no_cache).await?;
 
-        eprintln!("Select repositories (Tab to toggle, Enter to confirm):");
-        let selected_repos = app
-            .interactive()
-            .interactive_multi_search(&repositories)?;
+        let selected_repos = if !self.repos.is_empty() {
+            let matcher = app.fuzzy_matcher();
+            let mut matched = Vec::new();
+            for needle in &self.repos {
+                let results = matcher.match_repositories(needle, &repositories);
+                let repo = results
+                    .first()
+                    .ok_or_else(|| anyhow::anyhow!("no repository matching '{}' found", needle))?
+                    .to_owned();
+                if !matched.iter().any(|r: &crate::git_provider::Repository| r.ssh_url == repo.ssh_url) {
+                    matched.push(repo);
+                }
+            }
+            matched
+        } else {
+            eprintln!("Select repositories (Tab to toggle, Enter to confirm):");
+            app.interactive()
+                .interactive_multi_search(&repositories)?
+        };
 
         if selected_repos.is_empty() {
             anyhow::bail!("no repositories selected");
@@ -383,29 +429,33 @@ impl ProjectCreateCommand {
 
         // Apply template if requested
         let templates_dir = get_templates_dir(app);
-        let template = match self.template.take() {
-            Some(name) => {
-                let templates = list_subdirectories(&templates_dir)?;
-                Some(
-                    templates
-                        .into_iter()
-                        .find(|t| t.name == name)
-                        .ok_or_else(|| {
-                            anyhow::anyhow!(
-                                "template '{}' not found in {}",
-                                name,
-                                templates_dir.display()
-                            )
-                        })?,
-                )
-            }
-            None => {
-                let templates = list_subdirectories(&templates_dir)?;
-                if !templates.is_empty() {
-                    eprintln!("Select a project template (Esc to skip):");
-                    app.interactive().interactive_search_items(&templates)?
-                } else {
-                    None
+        let template = if self.no_template {
+            None
+        } else {
+            match self.template.take() {
+                Some(name) => {
+                    let templates = list_subdirectories(&templates_dir)?;
+                    Some(
+                        templates
+                            .into_iter()
+                            .find(|t| t.name == name)
+                            .ok_or_else(|| {
+                                anyhow::anyhow!(
+                                    "template '{}' not found in {}",
+                                    name,
+                                    templates_dir.display()
+                                )
+                            })?,
+                    )
+                }
+                None => {
+                    let templates = list_subdirectories(&templates_dir)?;
+                    if !templates.is_empty() {
+                        eprintln!("Select a project template (Esc to skip):");
+                        app.interactive().interactive_search_items(&templates)?
+                    } else {
+                        None
+                    }
                 }
             }
         };
@@ -455,10 +505,25 @@ impl ProjectAddCommand {
 
         let repositories = load_repositories(app, !self.no_cache).await?;
 
-        eprintln!("Select repositories to add (Tab to toggle, Enter to confirm):");
-        let selected_repos = app
-            .interactive()
-            .interactive_multi_search(&repositories)?;
+        let selected_repos = if !self.repos.is_empty() {
+            let matcher = app.fuzzy_matcher();
+            let mut matched = Vec::new();
+            for needle in &self.repos {
+                let results = matcher.match_repositories(needle, &repositories);
+                let repo = results
+                    .first()
+                    .ok_or_else(|| anyhow::anyhow!("no repository matching '{}' found", needle))?
+                    .to_owned();
+                if !matched.iter().any(|r: &crate::git_provider::Repository| r.ssh_url == repo.ssh_url) {
+                    matched.push(repo);
+                }
+            }
+            matched
+        } else {
+            eprintln!("Select repositories to add (Tab to toggle, Enter to confirm):");
+            app.interactive()
+                .interactive_multi_search(&repositories)?
+        };
 
         if selected_repos.is_empty() {
             anyhow::bail!("no repositories selected");
@@ -477,6 +542,86 @@ impl ProjectAddCommand {
             selected_repos.len(),
             project.name
         );
+
+        Ok(())
+    }
+}
+
+impl ProjectListCommand {
+    async fn execute(&self, app: &'static App) -> anyhow::Result<()> {
+        let projects_dir = get_projects_dir(app);
+        let projects = list_subdirectories(&projects_dir)?;
+
+        if projects.is_empty() {
+            if self.json {
+                println!("[]");
+            } else {
+                eprintln!(
+                    "no projects found in {}. Use 'gitnow project create' to create one.",
+                    projects_dir.display()
+                );
+            }
+            return Ok(());
+        }
+
+        if self.json {
+            let mut entries = Vec::new();
+            for project in &projects {
+                let mut entry = serde_json::Map::new();
+                entry.insert(
+                    "name".into(),
+                    serde_json::Value::String(project.name.clone()),
+                );
+                entry.insert(
+                    "path".into(),
+                    serde_json::Value::String(project.path.display().to_string()),
+                );
+                if let Some(meta) = &project.metadata {
+                    entry.insert(
+                        "created_at".into(),
+                        serde_json::Value::String(meta.created_at.to_rfc3339()),
+                    );
+                    if let Some(template) = &meta.template {
+                        entry.insert(
+                            "template".into(),
+                            serde_json::Value::String(template.clone()),
+                        );
+                    }
+                    if self.repos {
+                        let repos: Vec<serde_json::Value> = meta
+                            .repositories
+                            .iter()
+                            .map(|r| {
+                                serde_json::json!({
+                                    "provider": r.provider,
+                                    "owner": r.owner,
+                                    "repo_name": r.repo_name,
+                                    "ssh_url": r.ssh_url,
+                                })
+                            })
+                            .collect();
+                        entry.insert("repositories".into(), serde_json::Value::Array(repos));
+                    }
+                }
+                entries.push(serde_json::Value::Object(entry));
+            }
+            println!("{}", serde_json::to_string_pretty(&entries)?);
+        } else {
+            for project in &projects {
+                if let Some(meta) = &project.metadata {
+                    println!("{} ({})", project.name, meta.created_ago());
+                } else {
+                    println!("{}", project.name);
+                }
+                if self.repos {
+                    if let Some(meta) = &project.metadata {
+                        for repo in &meta.repositories {
+                            println!("  {}/{}/{}", repo.provider, repo.owner, repo.repo_name);
+                        }
+                    }
+                }
+            }
+        }
 
         Ok(())
     }

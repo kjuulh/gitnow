@@ -137,17 +137,35 @@ gitnow project create my-feature
 # Create from a template
 gitnow project create my-feature -t default
 
+# Create non-interactively with specific repos (fuzzy-matched)
+gitnow project create my-feature --repos repo-a --repos repo-b --no-template --no-shell
+
 # Open an existing project (interactive selection)
 gitnow project
 
 # Open by name
 gitnow project my-feature
 
-# Add more repos to a project
+# List all projects
+gitnow project list
+
+# List with repo details
+gitnow project list --repos
+
+# List as JSON (for scripting)
+gitnow project list --repos --json
+
+# Add more repos to a project (interactive)
 gitnow project add my-feature
+
+# Add repos non-interactively
+gitnow project add my-feature --repos repo-c --repos repo-d
 
 # Delete a project
 gitnow project delete my-feature
+
+# Delete without confirmation
+gitnow project delete my-feature --force
 ```
 
 Project directories live at `~/.gitnow/projects/` by default. Templates live at `~/.gitnow/templates/`. Both are configurable:
