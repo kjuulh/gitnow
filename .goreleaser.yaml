@@ -46,15 +46,15 @@ release:
   name_template: "v{{ .Version }}"
   mode: keep-existing
 
-homebrew_casks:
+brews:
   - name: gitnow
-    binaries:
-      - gitnow
     repository:
       owner: kjuulh
       name: homebrew-tap
       token: "{{ .Env.RELEASE_TOKEN }}"
-    url:
-      template: "https://git.kjuulh.io/kjuulh/gitnow/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
+    directory: Formula
+    url_template: "https://git.kjuulh.io/kjuulh/gitnow/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
     homepage: "https://gitnow-client.prod.kjuulh.app"
     description: "Git Now is a utility for easily navigating git projects from common upstream providers."
+    install: |
+      bin.install "gitnow"
