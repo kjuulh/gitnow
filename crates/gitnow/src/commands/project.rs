@@ -36,6 +36,8 @@ enum ProjectSubcommand {
     Create(ProjectCreateCommand),
     /// Add repositories to an existing project
     Add(ProjectAddCommand),
+    /// Remove repositories from an existing project
+    Remove(ProjectRemoveCommand),
     /// Delete an existing project
     Delete(ProjectDeleteCommand),
     /// List all projects and their repositories
@@ -84,6 +86,22 @@ pub struct ProjectAddCommand {
     /// Skip cache when fetching repositories
     #[arg(long = "no-cache", default_value = "false")]
     no_cache: bool,
+}
+
+#[derive(clap::Parser)]
+pub struct ProjectRemoveCommand {
+    /// Project name to remove repositories from
+    #[arg()]
+    name: Option<String>,
+
+    /// Repositories to remove (fuzzy-matched against the project manifest).
+    /// Can be specified multiple times: --repos foo --repos bar
+    #[arg(long = "repos", short = 'r')]
+    repos: Vec<String>,
+
+    /// Skip confirmation prompt
+    #[arg(long = "force", short = 'f', default_value = "false")]
+    force: bool,
 }
 
 #[derive(clap::Parser)]
@@ -313,6 +331,7 @@ impl ProjectCommand {
         match self.command.take() {
             Some(ProjectSubcommand::Create(mut create)) => create.execute(app, chooser).await,
             Some(ProjectSubcommand::Add(mut add)) => add.execute(app).await,
+            Some(ProjectSubcommand::Remove(mut remove)) => remove.execute(app).await,
             Some(ProjectSubcommand::Delete(mut delete)) => delete.execute(app).await,
             Some(ProjectSubcommand::List(list)) => list.execute(app).await,
             None => self.open_existing(app, chooser).await,
@@ -540,6 +559,109 @@ impl ProjectAddCommand {
         eprintln!(
             "added {} repositories to project '{}'",
             selected_repos.len(),
+            project.name
+        );
+
+        Ok(())
+    }
+}
+
+impl Searchable for RepoEntry {
+    fn display_label(&self) -> String {
+        format!("{}/{}/{}", self.provider, self.owner, self.repo_name)
+    }
+}
+
+impl ProjectRemoveCommand {
+    async fn execute(&mut self, app: &'static App) -> anyhow::Result<()> {
+        let projects_dir = get_projects_dir(app);
+        let projects = list_subdirectories(&projects_dir)?;
+
+        if projects.is_empty() {
+            anyhow::bail!(
+                "no projects found in {}. Use 'gitnow project create' to create one.",
+                projects_dir.display()
+            );
+        }
+
+        let project = select_project(app, self.name.take(), &projects)?;
+        let mut metadata = ProjectMetadata::load(&project.path);
+
+        let candidates: Vec<RepoEntry> = match &metadata {
+            Some(meta) => meta.repositories.clone(),
+            None => list_subdirectories(&project.path)?
+                .into_iter()
+                .map(|d| RepoEntry {
+                    provider: String::new(),
+                    owner: String::new(),
+                    repo_name: d.name,
+                    ssh_url: String::new(),
+                })
+                .collect(),
+        };
+
+        if candidates.is_empty() {
+            anyhow::bail!("no repositories found in project '{}'", project.name);
+        }
+
+        let selected: Vec<RepoEntry> = if !self.repos.is_empty() {
+            let mut matched: Vec<RepoEntry> = Vec::new();
+            for needle in &self.repos {
+                let needle_lc = needle.to_lowercase();
+                let hit = candidates
+                    .iter()
+                    .find(|r| r.repo_name.to_lowercase().contains(&needle_lc))
+                    .ok_or_else(|| anyhow::anyhow!("no repository matching '{}' found", needle))?
+                    .clone();
+                if !matched.iter().any(|r| r.repo_name == hit.repo_name) {
+                    matched.push(hit);
+                }
+            }
+            matched
+        } else {
+            eprintln!("Select repositories to remove (Tab to toggle, Enter to confirm):");
+            app.interactive().interactive_multi_search(&candidates)?
+        };
+
+        if selected.is_empty() {
+            eprintln!("no repositories selected");
+            return Ok(());
+        }
+
+        if !self.force {
+            eprintln!("Repositories to remove from '{}':", project.name);
+            for repo in &selected {
+                eprintln!("  - {}", repo.display_label());
+            }
+            eprint!("Proceed? [y/N] ");
+            let mut input = String::new();
+            std::io::stdin().read_line(&mut input)?;
+            if !input.trim().eq_ignore_ascii_case("y") {
+                eprintln!("aborted");
+                return Ok(());
+            }
+        }
+
+        let mut removed = 0;
+        for repo in &selected {
+            let repo_path = project.path.join(&repo.repo_name);
+            if repo_path.exists() {
+                tokio::fs::remove_dir_all(&repo_path).await?;
+                eprintln!("  removed {}", repo.repo_name);
+                removed += 1;
+            } else {
+                eprintln!("  {} not found on disk, dropping from manifest", repo.repo_name);
+            }
+        }
+
+        if let Some(meta) = metadata.as_mut() {
+            meta.remove_repositories(&selected);
+            meta.save(&project.path)?;
+        }
+
+        eprintln!(
+            "removed {} repositories from project '{}'",
+            removed,
             project.name
         );
 

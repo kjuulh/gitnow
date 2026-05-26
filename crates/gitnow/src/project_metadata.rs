@@ -73,6 +73,11 @@ impl ProjectMetadata {
         }
     }
 
+    pub fn remove_repositories(&mut self, repos: &[RepoEntry]) {
+        self.repositories
+            .retain(|r| !repos.iter().any(|x| x.ssh_url == r.ssh_url));
+    }
+
     pub fn created_ago(&self) -> String {
         let duration = Utc::now().signed_duration_since(self.created_at);
 
