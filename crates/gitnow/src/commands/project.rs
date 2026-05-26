@@ -758,14 +758,32 @@ impl ProjectDeleteCommand {
             anyhow::bail!("no projects found in {}", projects_dir.display());
         }
 
-        let project = select_project(app, self.name.take(), &projects)?;
+        let selected: Vec<DirEntry> = match self.name.take() {
+            Some(name) => {
+                let project = projects
+                    .iter()
+                    .find(|p| p.name == name)
+                    .ok_or_else(|| anyhow::anyhow!("project '{}' not found", name))?
+                    .clone();
+                vec![project]
+            }
+            None => {
+                eprintln!("Select projects to delete (Tab to toggle, Enter to confirm):");
+                app.interactive().interactive_multi_search(&projects)?
+            }
+        };
+
+        if selected.is_empty() {
+            eprintln!("no projects selected");
+            return Ok(());
+        }
 
         if !self.force {
-            eprint!(
-                "Delete project '{}' at {}? [y/N] ",
-                project.name,
-                project.path.display()
-            );
+            eprintln!("Projects to delete:");
+            for project in &selected {
+                eprintln!("  - {} ({})", project.name, project.path.display());
+            }
+            eprint!("Proceed? [y/N] ");
             let mut input = String::new();
             std::io::stdin().read_line(&mut input)?;
             if !input.trim().eq_ignore_ascii_case("y") {
@@ -774,8 +792,20 @@ impl ProjectDeleteCommand {
             }
         }
 
-        tokio::fs::remove_dir_all(&project.path).await?;
-        eprintln!("deleted project '{}'", project.name);
+        let mut deleted = 0;
+        for project in &selected {
+            match tokio::fs::remove_dir_all(&project.path).await {
+                Ok(()) => {
+                    eprintln!("  deleted {}", project.name);
+                    deleted += 1;
+                }
+                Err(e) => {
+                    eprintln!("  failed to delete {}: {}", project.name, e);
+                }
+            }
+        }
+
+        eprintln!("deleted {} project(s)", deleted);
 
         Ok(())
     }
