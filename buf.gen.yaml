@@ -1,10 +1,13 @@
 version: v2
+clean: true
 managed:
   enabled: true
 plugins:
   # dependencies
 - remote: buf.build/community/neoeinstein-prost
   out: crates/gitnow/src/gen
+  opt:
+    - flat_output_dir=true
   
 inputs:
   - directory: crates/gitnow/proto
