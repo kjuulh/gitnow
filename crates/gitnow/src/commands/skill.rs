@@ -172,12 +172,16 @@ List all projects and optionally show their repositories.
 
 #### `gitnow project delete [NAME] [OPTIONS]`
 
-Delete a project directory.
+Delete one or more project directories. Matching projects are previewed before
+deletion unless `--quiet` is set.
 
-| Flag          | Description                          |
-|---------------|--------------------------------------|
-| `[NAME]`      | Project name (interactive if omitted)|
-| `-f, --force` | Skip confirmation prompt             |
+| Flag                  | Description                                           |
+|-----------------------|-------------------------------------------------------|
+| `[NAME]`              | Project name (interactive multi-select if omitted)    |
+| `--older-than DAYS`   | Delete projects older than the given number of days   |
+| `--before DATE`       | Delete projects created before a date or RFC 3339 time|
+| `-f, --force`         | Skip confirmation; the preview is still shown         |
+| `-q, --quiet`         | Suppress previews and successful deletion output      |
 
 ---
 
@@ -245,6 +249,8 @@ list_branches_command = "git -C {{ bare_path }} branch -r --format=%(refname:sho
 directory = "~/.gitnow/projects"
 # Where project templates live (default: ~/.gitnow/templates)
 templates_directory = "~/.gitnow/templates"
+# Automatically delete old projects before project commands (optional)
+auto_delete_older_than_days = 30
 
 # --- Providers ---
 

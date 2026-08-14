@@ -46,6 +46,10 @@ pub struct ProjectSettings {
     /// Each subdirectory is a template whose files are copied into new projects.
     /// Default: "~/.gitnow/templates"
     pub templates_directory: Option<String>,
+
+    /// Automatically delete projects older than this many days whenever a
+    /// project command runs.
+    pub auto_delete_older_than_days: Option<u32>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
@@ -481,6 +485,23 @@ mod test {
                 ),
             })
         );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_can_parse_automatic_project_cleanup() -> anyhow::Result<()> {
+        let content = r#"
+              [settings.project]
+              directory = "~/.gitnow/projects"
+              templates_directory = "~/.gitnow/templates"
+              auto_delete_older_than_days = 30
+            "#;
+
+        let config = Config::from_string(content)?;
+        let project = config.settings.project.unwrap();
+
+        assert_eq!(project.auto_delete_older_than_days, Some(30));
 
         Ok(())
     }

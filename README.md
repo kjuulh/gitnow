@@ -166,7 +166,18 @@ gitnow project delete my-feature
 
 # Delete without confirmation
 gitnow project delete my-feature --force
+
+# Delete projects created before a date (midnight UTC)
+gitnow project delete --before 2026-07-15
+
+# Delete projects older than 30 days without confirmation
+gitnow project delete --older-than 30 --force
+
+# Suppress the preview and success output for automation
+gitnow project delete --older-than 30 --force --quiet
 ```
+
+Deletion commands preview every selected project unless `--quiet` is set. `--force` skips the confirmation prompt but still shows the preview. `--before` accepts either `YYYY-MM-DD` (midnight UTC) or an RFC 3339 timestamp.
 
 Project directories live at `~/.gitnow/projects/` by default. Templates live at `~/.gitnow/templates/`. Both are configurable:
 
@@ -174,7 +185,10 @@ Project directories live at `~/.gitnow/projects/` by default. Templates live at 
 [settings.project]
 directory = "~/.gitnow/projects"
 templates_directory = "~/.gitnow/templates"
+auto_delete_older_than_days = 30
 ```
+
+When `auto_delete_older_than_days` is set, each `gitnow project` command except an explicit `project delete` first removes metadata-backed projects older than the configured retention period. Automatic cleanup is non-interactive and prints the projects it removes.
 
 Commands that navigate to a directory (`gitnow`, `gitnow project`, `gitnow project create`, `gitnow worktree`) will `cd` you there when using the shell integration. Commands that don't produce a path (`project add`, `project delete`, `update`) run normally without changing your directory.
 

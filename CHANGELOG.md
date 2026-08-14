@@ -6,6 +6,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- filter bulk project deletion by age or cutoff date, preview matches unless `--quiet` is set, and support configurable automatic retention
+
 ## [0.3.5] - 2025-03-04
 
 ### Added

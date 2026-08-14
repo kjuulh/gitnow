@@ -1,3 +1,4 @@
+use chrono::Utc;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -121,9 +122,26 @@ pub struct ProjectDeleteCommand {
     #[arg()]
     name: Option<String>,
 
+    /// Delete every project created more than this many days ago
+    #[arg(long, value_name = "DAYS", conflicts_with = "name")]
+    older_than: Option<u32>,
+
+    /// Delete every project created before this date or RFC 3339 timestamp
+    #[arg(
+        long,
+        value_name = "DATE",
+        value_parser = parse_cutoff_date,
+        conflicts_with_all = ["name", "older_than"]
+    )]
+    before: Option<chrono::DateTime<Utc>>,
+
     /// Skip confirmation prompt
     #[arg(long = "force", short = 'f', default_value = "false")]
     force: bool,
+
+    /// Suppress previews and successful deletion output
+    #[arg(long, short = 'q', default_value = "false")]
+    quiet: bool,
 }
 
 // --- Shared helpers ---
@@ -143,6 +161,19 @@ impl Searchable for DirEntry {
             None => self.name.clone(),
         }
     }
+}
+
+fn parse_cutoff_date(value: &str) -> Result<chrono::DateTime<Utc>, String> {
+    if let Ok(date) = chrono::NaiveDate::parse_from_str(value, "%Y-%m-%d") {
+        return Ok(date
+            .and_hms_opt(0, 0, 0)
+            .expect("midnight is a valid time")
+            .and_utc());
+    }
+
+    chrono::DateTime::parse_from_rfc3339(value)
+        .map(|date| date.with_timezone(&Utc))
+        .map_err(|_| format!("invalid date '{value}'; expected YYYY-MM-DD or an RFC 3339 timestamp"))
 }
 
 /// Resolve a config directory path, expanding `~` to the home directory.
@@ -213,6 +244,18 @@ fn list_subdirectories(dir: &Path) -> anyhow::Result<Vec<DirEntry>> {
     });
 
     Ok(entries)
+}
+
+fn projects_created_before(projects: &[DirEntry], cutoff: chrono::DateTime<Utc>) -> Vec<&DirEntry> {
+    projects
+        .iter()
+        .filter(|project| {
+            project
+                .metadata
+                .as_ref()
+                .is_some_and(|metadata| metadata.created_at < cutoff)
+        })
+        .collect()
 }
 
 fn copy_dir_recursive(src: &Path, dst: &Path) -> anyhow::Result<()> {
@@ -324,10 +367,55 @@ fn select_project(
     }
 }
 
+async fn auto_delete_old_projects(app: &'static App) -> anyhow::Result<()> {
+    let Some(days) = app
+        .config
+        .settings
+        .project
+        .as_ref()
+        .and_then(|settings| settings.auto_delete_older_than_days)
+    else {
+        return Ok(());
+    };
+
+    let cutoff = Utc::now()
+        .checked_sub_signed(chrono::Duration::days(i64::from(days)))
+        .ok_or_else(|| anyhow::anyhow!("auto_delete_older_than_days value is too large"))?;
+    let projects = list_subdirectories(&get_projects_dir(app))?;
+    let matching = projects_created_before(&projects, cutoff);
+
+    if matching.is_empty() {
+        return Ok(());
+    }
+
+    eprintln!("Automatically deleting projects older than {days} days:");
+    for project in &matching {
+        eprintln!("  - {} ({})", project.name, project.path.display());
+    }
+
+    for project in matching {
+        tokio::fs::remove_dir_all(&project.path)
+            .await
+            .map_err(|error| {
+                anyhow::anyhow!(
+                    "failed to automatically delete project '{}': {}",
+                    project.name,
+                    error
+                )
+            })?;
+    }
+
+    Ok(())
+}
+
 // --- Command implementations ---
 
 impl ProjectCommand {
     pub async fn execute(&mut self, app: &'static App, chooser: &Chooser) -> anyhow::Result<()> {
+        if !matches!(&self.command, Some(ProjectSubcommand::Delete(_))) {
+            auto_delete_old_projects(app).await?;
+        }
+
         match self.command.take() {
             Some(ProjectSubcommand::Create(mut create)) => create.execute(app, chooser).await,
             Some(ProjectSubcommand::Add(mut add)) => add.execute(app).await,
@@ -758,18 +846,45 @@ impl ProjectDeleteCommand {
             anyhow::bail!("no projects found in {}", projects_dir.display());
         }
 
-        let selected: Vec<DirEntry> = match self.name.take() {
-            Some(name) => {
-                let project = projects
-                    .iter()
-                    .find(|p| p.name == name)
-                    .ok_or_else(|| anyhow::anyhow!("project '{}' not found", name))?
-                    .clone();
-                vec![project]
+        let selected: Vec<DirEntry> = if let Some(days) = self.older_than {
+            let cutoff = Utc::now()
+                .checked_sub_signed(chrono::Duration::days(i64::from(days)))
+                .ok_or_else(|| anyhow::anyhow!("--older-than value is too large"))?;
+            let matching = projects_created_before(&projects, cutoff);
+
+            if matching.is_empty() {
+                if !self.quiet {
+                    eprintln!("no projects older than {days} days found");
+                }
+                return Ok(());
             }
-            None => {
-                eprintln!("Select projects to delete (Tab to toggle, Enter to confirm):");
-                app.interactive().interactive_multi_search(&projects)?
+
+            matching.into_iter().cloned().collect()
+        } else if let Some(cutoff) = self.before {
+            let matching = projects_created_before(&projects, cutoff);
+
+            if matching.is_empty() {
+                if !self.quiet {
+                    eprintln!("no projects created before {} found", cutoff.to_rfc3339());
+                }
+                return Ok(());
+            }
+
+            matching.into_iter().cloned().collect()
+        } else {
+            match self.name.take() {
+                Some(name) => {
+                    let project = projects
+                        .iter()
+                        .find(|p| p.name == name)
+                        .ok_or_else(|| anyhow::anyhow!("project '{}' not found", name))?
+                        .clone();
+                    vec![project]
+                }
+                None => {
+                    eprintln!("Select projects to delete (Tab to toggle, Enter to confirm):");
+                    app.interactive().interactive_multi_search(&projects)?
+                }
             }
         };
 
@@ -778,16 +893,21 @@ impl ProjectDeleteCommand {
             return Ok(());
         }
 
-        if !self.force {
+        if !self.quiet {
             eprintln!("Projects to delete:");
             for project in &selected {
                 eprintln!("  - {} ({})", project.name, project.path.display());
             }
+        }
+
+        if !self.force {
             eprint!("Proceed? [y/N] ");
             let mut input = String::new();
             std::io::stdin().read_line(&mut input)?;
             if !input.trim().eq_ignore_ascii_case("y") {
-                eprintln!("aborted");
+                if !self.quiet {
+                    eprintln!("aborted");
+                }
                 return Ok(());
             }
         }
@@ -796,7 +916,9 @@ impl ProjectDeleteCommand {
         for project in &selected {
             match tokio::fs::remove_dir_all(&project.path).await {
                 Ok(()) => {
-                    eprintln!("  deleted {}", project.name);
+                    if !self.quiet {
+                        eprintln!("  deleted {}", project.name);
+                    }
                     deleted += 1;
                 }
                 Err(e) => {
@@ -805,8 +927,65 @@ impl ProjectDeleteCommand {
             }
         }
 
-        eprintln!("deleted {} project(s)", deleted);
+        if !self.quiet {
+            eprintln!("deleted {} project(s)", deleted);
+        }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn project(name: &str, created_at: Option<chrono::DateTime<Utc>>) -> DirEntry {
+        DirEntry {
+            name: name.into(),
+            path: PathBuf::from(name),
+            metadata: created_at.map(|created_at| ProjectMetadata {
+                version: 1,
+                name: name.into(),
+                created_at,
+                template: None,
+                repositories: Vec::new(),
+            }),
+        }
+    }
+
+    #[test]
+    fn age_filter_only_selects_projects_created_before_cutoff() {
+        let cutoff = "2026-07-15T12:00:00Z".parse().unwrap();
+        let projects = vec![
+            project("older", Some(cutoff - chrono::Duration::seconds(1))),
+            project("at-cutoff", Some(cutoff)),
+            project("newer", Some(cutoff + chrono::Duration::seconds(1))),
+            project("without-metadata", None),
+        ];
+
+        let matching = projects_created_before(&projects, cutoff);
+        let names: Vec<&str> = matching
+            .iter()
+            .map(|project| project.name.as_str())
+            .collect();
+
+        assert_eq!(names, ["older"]);
+    }
+
+    #[test]
+    fn cutoff_parser_accepts_dates_and_rfc3339_timestamps() {
+        let date = parse_cutoff_date("2026-07-15").unwrap();
+        let timestamp = parse_cutoff_date("2026-07-15T02:00:00+02:00").unwrap();
+        let expected: chrono::DateTime<Utc> = "2026-07-15T00:00:00Z".parse().unwrap();
+
+        assert_eq!(date, expected);
+        assert_eq!(timestamp, expected);
+    }
+
+    #[test]
+    fn cutoff_parser_rejects_invalid_dates() {
+        let error = parse_cutoff_date("15/07/2026").unwrap_err();
+
+        assert!(error.contains("expected YYYY-MM-DD or an RFC 3339 timestamp"));
     }
 }
