@@ -1,0 +1,42 @@
+# Verify release builds on main and publish tags through GoReleaser.
+#
+# Required Woodpecker secret:
+#   gitea_token — token with write access to gitnow and homebrew-tap
+when:
+  - event: push
+    branch: main
+  - event: tag
+    ref: refs/tags/v*
+
+steps:
+  snapshot:
+    image: debian:trixie-slim
+    when:
+      - event: push
+        branch: main
+    environment:
+      MISE_YES: "1"
+    commands:
+      - apt-get update && apt-get install -y --no-install-recommends ca-certificates curl git build-essential
+      - curl https://mise.run | MISE_INSTALL_PATH=/usr/local/bin/mise sh
+      - mise trust
+      - mise install
+      - mise run release-snapshot
+
+  release:
+    image: debian:trixie-slim
+    when:
+      - event: tag
+        ref: refs/tags/v*
+    environment:
+      MISE_YES: "1"
+      GITEA_TOKEN:
+        from_secret: gitea_token
+      RELEASE_TOKEN:
+        from_secret: gitea_token
+    commands:
+      - apt-get update && apt-get install -y --no-install-recommends ca-certificates curl git build-essential
+      - curl https://mise.run | MISE_INSTALL_PATH=/usr/local/bin/mise sh
+      - mise trust
+      - mise install
+      - mise run release

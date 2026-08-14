@@ -1,0 +1,13 @@
+# Test every pull request and push to main.
+when:
+  - event: push
+    branch: main
+  - event: pull_request
+
+steps:
+  test:
+    image: rust:1.93-bookworm
+    environment:
+      CARGO_TERM_COLOR: always
+    commands:
+      - cargo test --workspace --locked
