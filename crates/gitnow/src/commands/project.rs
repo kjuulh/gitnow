@@ -1,4 +1,5 @@
 use chrono::Utc;
+use futures::{StreamExt, stream};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -258,6 +259,22 @@ fn projects_created_before(projects: &[DirEntry], cutoff: chrono::DateTime<Utc>)
         .collect()
 }
 
+const PROJECT_DELETE_CONCURRENCY: usize = 4;
+
+async fn delete_project_directories<'a, I>(projects: I) -> Vec<(&'a DirEntry, std::io::Result<()>)>
+where
+    I: IntoIterator<Item = &'a DirEntry>,
+{
+    stream::iter(projects)
+        .map(|project| async move {
+            let result = tokio::fs::remove_dir_all(&project.path).await;
+            (project, result)
+        })
+        .buffered(PROJECT_DELETE_CONCURRENCY)
+        .collect()
+        .await
+}
+
 fn copy_dir_recursive(src: &Path, dst: &Path) -> anyhow::Result<()> {
     std::fs::create_dir_all(dst)?;
     for entry in std::fs::read_dir(src)? {
@@ -393,16 +410,14 @@ async fn auto_delete_old_projects(app: &'static App) -> anyhow::Result<()> {
         eprintln!("  - {} ({})", project.name, project.path.display());
     }
 
-    for project in matching {
-        tokio::fs::remove_dir_all(&project.path)
-            .await
-            .map_err(|error| {
-                anyhow::anyhow!(
-                    "failed to automatically delete project '{}': {}",
-                    project.name,
-                    error
-                )
-            })?;
+    for (project, result) in delete_project_directories(matching).await {
+        result.map_err(|error| {
+            anyhow::anyhow!(
+                "failed to automatically delete project '{}': {}",
+                project.name,
+                error
+            )
+        })?;
     }
 
     Ok(())
@@ -913,8 +928,8 @@ impl ProjectDeleteCommand {
         }
 
         let mut deleted = 0;
-        for project in &selected {
-            match tokio::fs::remove_dir_all(&project.path).await {
+        for (project, result) in delete_project_directories(&selected).await {
+            match result {
                 Ok(()) => {
                     if !self.quiet {
                         eprintln!("  deleted {}", project.name);
