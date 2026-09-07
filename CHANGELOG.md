@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-07
+
+### Added
+- support multi-term, fzf-style repository queries and pre-filtered interactive selection
+- add the `gi` zsh helper for interactive repository navigation
+
+### Fixed
+- preserve duplicate picker entries and handle Unicode backspace safely
+
 ## [0.5.1] - 2026-08-14
 
 ### Fixed

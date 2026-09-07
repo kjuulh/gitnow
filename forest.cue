@@ -33,8 +33,8 @@ project: sdk.#ForestProject & {
 	organisation: "understory"
 	description:  "Navigate, clone, and enter git projects as fast as you can type."
 	metadata: {
-		git_url: "https://git.kjuulh.io/kjuulh/gitnow"
-		owner:   "kjuulh"
+		git_url: "https://github.com/understory-io/gitnow"
+		owner:   "understory-io"
 	}
 }
 
@@ -45,8 +45,9 @@ forest: component: sdk.#ForestComponent & {
 	// Shell integration, declared rather than pasted into every user's rc file
 	// (forest DATA-588). Forest runs `gitnow init zsh` once when the binary is
 	// fetched, caches stdout, and serves it from `forest shell zsh` — so
-	// `eval "$(forest shell zsh)"` is all a user needs to get `git-now`/`gn`,
-	// and nobody pays a cold-cache download at shell startup to get them.
+	// `eval "$(forest shell zsh)"` is all a user needs to get
+	// `git-now`/`gn`/`gi`, and nobody pays a cold-cache download at shell
+	// startup to get them.
 	//
 	// zsh only: `gitnow init` has no bash or fish subcommand. Declaring a shell
 	// the tool cannot emit would just cache a failed capture.
