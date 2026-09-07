@@ -44,8 +44,13 @@ struct Command {
     #[arg(long = "config", short = 'c', global = true)]
     config: Option<PathBuf>,
 
-    #[arg()]
-    search: Option<String>,
+    /// Repository query terms. All terms must match.
+    #[arg(value_name = "QUERY", num_args = 0..)]
+    search: Vec<String>,
+
+    /// Always show the interactive picker, pre-filtered by the query.
+    #[arg(long = "interactive", short = 'i', default_value = "false")]
+    interactive: bool,
 
     #[arg(long = "no-cache", default_value = "false")]
     no_cache: bool,
@@ -121,6 +126,7 @@ async fn main() -> anyhow::Result<()> {
         .map(chooser::Chooser::new)
         .unwrap_or_default();
     let no_shell = cli.no_shell || chooser.is_active();
+    let search = (!cli.search.is_empty()).then(|| cli.search.join(" "));
 
     match cli.command {
         Some(cmd) => match cmd {
@@ -146,7 +152,8 @@ async fn main() -> anyhow::Result<()> {
         None => {
             RootCommand::new(app)
                 .execute(
-                    cli.search.as_ref(),
+                    search.as_deref(),
+                    cli.interactive,
                     !cli.no_cache,
                     !cli.no_clone,
                     !no_shell,
@@ -159,4 +166,27 @@ async fn main() -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use clap::Parser;
+
+    use super::Command;
+
+    #[test]
+    fn accepts_multiple_query_terms() {
+        let command = Command::try_parse_from(["gitnow", "mire", "api"]).unwrap();
+
+        assert_eq!(command.search, ["mire", "api"]);
+        assert!(!command.interactive);
+    }
+
+    #[test]
+    fn accepts_an_initial_interactive_query() {
+        let command = Command::try_parse_from(["gitnow", "--interactive", "mire", "api"]).unwrap();
+
+        assert_eq!(command.search, ["mire", "api"]);
+        assert!(command.interactive);
+    }
 }

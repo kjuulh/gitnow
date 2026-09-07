@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, io::IsTerminal};
+use std::io::IsTerminal;
 
 use crate::{
     app::App,
@@ -26,7 +26,8 @@ impl RootCommand {
 
     pub async fn execute(
         &mut self,
-        search: Option<impl Into<String>>,
+        search: Option<&str>,
+        interactive: bool,
         cache: bool,
         clone: bool,
         shell: bool,
@@ -45,30 +46,31 @@ impl RootCommand {
             load_repositories(self.app, cache).await?
         };
 
-        let repo = match search {
-            Some(needle) => {
-                let matched_repos = self
-                    .app
-                    .fuzzy_matcher()
-                    .match_repositories(&needle.into(), &repositories);
+        let repo = if interactive {
+            self.app
+                .interactive()
+                .interactive_search(&repositories, search.unwrap_or_default())?
+                .ok_or(anyhow::anyhow!("failed to find a repository"))?
+        } else {
+            match search {
+                Some(needle) => {
+                    let matched_repos = self
+                        .app
+                        .fuzzy_matcher()
+                        .match_repositories(needle, &repositories);
 
-                let repo = matched_repos
-                    .first()
-                    .ok_or(anyhow::anyhow!("failed to find repository"))?;
-                tracing::debug!("selected repo: {}", repo.to_rel_path().display());
+                    let repo = matched_repos
+                        .first()
+                        .ok_or(anyhow::anyhow!("failed to find repository"))?;
+                    tracing::debug!("selected repo: {}", repo.to_rel_path().display());
 
-                repo.to_owned()
-            }
-            None => {
-                let repo = self
+                    repo.to_owned()
+                }
+                None => self
                     .app
                     .interactive()
-                    .interactive_search(&repositories)?
-                    .ok_or(anyhow::anyhow!("failed to find a repository"))?;
-
-                tracing::debug!("selected repo: {}", repo.to_rel_path().display());
-
-                repo
+                    .interactive_search(&repositories, "")?
+                    .ok_or(anyhow::anyhow!("failed to find a repository"))?,
             }
         };
 
@@ -132,15 +134,14 @@ pub trait RepositoryMatcher {
 
 impl RepositoryMatcher for FuzzyMatcher {
     fn match_repositories(&self, pattern: &str, repositories: &[Repository]) -> Vec<Repository> {
-        let haystack: BTreeMap<String, &Repository> = repositories
+        let labels: Vec<String> = repositories
             .iter()
-            .map(|r| (r.to_rel_path().display().to_string(), r))
+            .map(|repository| repository.to_rel_path().display().to_string())
             .collect();
-        let keys: Vec<&str> = haystack.keys().map(|s| s.as_str()).collect();
 
-        self.match_pattern(pattern, &keys)
+        self.match_indices(pattern, &labels)
             .into_iter()
-            .filter_map(|key| haystack.get(key).map(|r| (*r).to_owned()))
+            .map(|index| repositories[index].clone())
             .collect()
     }
 }

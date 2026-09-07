@@ -51,7 +51,7 @@ impl WorktreeCommand {
             }
             None => app
                 .interactive()
-                .interactive_search(&repositories)?
+                .interactive_search(&repositories, "")?
                 .ok_or(anyhow::anyhow!("failed to find a repository"))?,
         };
 
@@ -105,7 +105,7 @@ impl WorktreeCommand {
 
                 let selected = app
                     .interactive()
-                    .interactive_search_items(&items)?
+                    .interactive_search_items(&items, "")?
                     .ok_or(anyhow::anyhow!("no branch selected"))?;
 
                 selected.0

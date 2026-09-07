@@ -34,18 +34,20 @@ impl Interactive {
     pub fn interactive_search(
         &mut self,
         repositories: &[Repository],
+        initial_query: &str,
     ) -> anyhow::Result<Option<Repository>> {
-        self.interactive_search_items(repositories)
+        self.interactive_search_items(repositories, initial_query)
     }
 
     pub fn interactive_search_items<T: Searchable>(
         &mut self,
         items: &[T],
+        initial_query: &str,
     ) -> anyhow::Result<Option<T>> {
         let backend = TermwizBackend::new().map_err(|e| anyhow::anyhow!(e.to_string()))?;
         let terminal = Terminal::new(backend)?;
 
-        App::new(self.app, items).run(terminal)
+        App::new(self.app, items, initial_query).run(terminal)
     }
 
     pub fn interactive_multi_search<T: Searchable>(
@@ -94,36 +96,31 @@ mod app {
     }
 
     impl<'a, T: Searchable> App<'a, T> {
-        pub fn new(app: &'static crate::app::App, items: &'a [T]) -> Self {
+        pub fn new(app: &'static crate::app::App, items: &'a [T], initial_query: &str) -> Self {
             Self {
                 app,
                 items,
-                current_search: String::default(),
+                current_search: initial_query.to_owned(),
                 matched_items: Vec::default(),
                 list: ListState::default(),
             }
         }
 
         fn update_matched_items(&mut self) {
-            let labels: Vec<String> = self.items.iter().map(|i| i.display_label()).collect();
-            let label_refs: Vec<&str> = labels.iter().map(|s| s.as_str()).collect();
-
-            let matched_keys = self
+            let labels: Vec<String> = self.items.iter().map(|item| item.display_label()).collect();
+            let matched_indices = self
                 .app
                 .fuzzy_matcher()
-                .match_pattern(&self.current_search, &label_refs);
+                .match_indices(&self.current_search, &labels);
 
-            self.matched_items = matched_keys
+            self.matched_items = matched_indices
                 .into_iter()
-                .filter_map(|key| {
-                    self.items
-                        .iter()
-                        .find(|i| i.display_label() == key)
-                        .cloned()
-                })
+                .map(|index| self.items[index].clone())
                 .collect();
 
-            if self.list.selected().is_none() {
+            if self.matched_items.is_empty() {
+                self.list.select(None);
+            } else {
                 self.list.select_first();
             }
         }
@@ -150,9 +147,7 @@ mod app {
                             self.update_matched_items();
                         }
                         KeyCode::Backspace => {
-                            if !self.current_search.is_empty() {
-                                let _ =
-                                    self.current_search.remove(self.current_search.len() - 1);
+                            if self.current_search.pop().is_some() {
                                 self.update_matched_items();
                             }
                         }
@@ -248,25 +243,20 @@ pub mod multi_select {
         }
 
         fn update_matched_items(&mut self) {
-            let labels: Vec<String> = self.items.iter().map(|i| i.display_label()).collect();
-            let label_refs: Vec<&str> = labels.iter().map(|s| s.as_str()).collect();
-
-            let matched_keys = self
+            let labels: Vec<String> = self.items.iter().map(|item| item.display_label()).collect();
+            let matched_indices = self
                 .app
                 .fuzzy_matcher()
-                .match_pattern(&self.current_search, &label_refs);
+                .match_indices(&self.current_search, &labels);
 
-            self.matched_items = matched_keys
+            self.matched_items = matched_indices
                 .into_iter()
-                .filter_map(|key| {
-                    self.items
-                        .iter()
-                        .find(|i| i.display_label() == key)
-                        .cloned()
-                })
+                .map(|index| self.items[index].clone())
                 .collect();
 
-            if self.list.selected().is_none() {
+            if self.matched_items.is_empty() {
+                self.list.select(None);
+            } else {
                 self.list.select_first();
             }
         }
@@ -307,9 +297,7 @@ pub mod multi_select {
                             self.update_matched_items();
                         }
                         KeyCode::Backspace => {
-                            if !self.current_search.is_empty() {
-                                let _ =
-                                    self.current_search.remove(self.current_search.len() - 1);
+                            if self.current_search.pop().is_some() {
                                 self.update_matched_items();
                             }
                         }
