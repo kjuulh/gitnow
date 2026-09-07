@@ -21,7 +21,7 @@ management, and scratch-pad project workspaces.
 ## Quick reference
 
 ```
-gitnow [OPTIONS] [SEARCH]            # search/clone/open a repository
+gitnow [OPTIONS] [QUERY]...          # search/clone/open a repository
 gitnow update                        # refresh the local repository cache
 gitnow clone --search <REGEX>        # batch-clone repositories matching a pattern
 gitnow worktree [SEARCH] [OPTIONS]   # create and enter a git worktree for a branch
@@ -39,19 +39,23 @@ gitnow skill                         # print this reference (you are here)
 ### Default (no subcommand)
 
 ```
-gitnow [OPTIONS] [SEARCH]
+gitnow [OPTIONS] [QUERY]...
 ```
 
 Search for a repository, optionally clone it, and open a shell inside it.
 
-- If SEARCH is provided, fuzzy-matches against cached repositories.
-- If omitted, opens an interactive fuzzy-search picker.
+- With QUERY terms, picks the highest-ranked match immediately.
+- With `--interactive`, opens the picker pre-filtered by the QUERY terms.
+- Without terms, opens the interactive fuzzy-search picker.
+- Multiple terms must all match. fzf-style `'exact`, `^prefix`, `suffix$`, and
+  `!exclude` terms are supported.
 - Clones the repository if it does not exist locally.
 - Spawns a sub-shell in the repository directory.
 
 **Flags:**
 | Flag                  | Description                                              |
 |-----------------------|----------------------------------------------------------|
+| `-i, --interactive`   | Always pick interactively; use QUERY as initial filter |
 | `--no-cache`          | Skip reading from the local cache; fetch fresh data      |
 | `--no-clone`          | Do not clone the repository if it is missing locally     |
 | `--no-shell`          | Print the path instead of spawning a shell               |
@@ -187,14 +191,16 @@ deletion unless `--quiet` is set.
 
 ### `gitnow init zsh`
 
-Print a zsh shell integration script to stdout. Typically used as:
+Print zsh shell integration functions to stdout. Typically used as:
 
 ```zsh
 eval "$(gitnow init zsh)"
+gn mire api  # jump directly to the best match
+gi mire api  # choose interactively from filtered matches
 ```
 
-This provides a shell function that changes directory after gitnow exits,
-using the chooser-file mechanism.
+`git-now` and its short alias `gn` change directory using the chooser-file
+mechanism. `gi` adds `--interactive`, like zoxide's `zi`.
 
 ---
 
@@ -288,6 +294,7 @@ Add to `.zshrc`:
 ```zsh
 eval "$(gitnow init zsh)"
 ```
-This wraps gitnow so that selecting a repository changes your current shell's
-working directory (instead of spawning a sub-shell).
+Use `gn <terms...>` to change directory to the best repository match, or
+`gi <terms...>` to choose interactively from a pre-filtered list. Both change
+the current shell's working directory instead of spawning a sub-shell.
 "#;

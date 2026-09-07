@@ -31,3 +31,8 @@ function git-now {
 function gn {
   git-now "$@"
 }
+
+# Start the picker with an optional query, similar to zoxide's `zi`.
+function gi {
+  git-now --interactive "$@"
+}

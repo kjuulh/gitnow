@@ -379,7 +379,7 @@ fn select_project(
             .cloned(),
         None => app
             .interactive()
-            .interactive_search_items(projects)?
+            .interactive_search_items(projects, "")?
             .ok_or_else(|| anyhow::anyhow!("no project selected")),
     }
 }
@@ -473,7 +473,7 @@ impl ProjectCommand {
             }
             None => app
                 .interactive()
-                .interactive_search_items(&projects)?
+                .interactive_search_items(&projects, "")?
                 .ok_or(anyhow::anyhow!("no project selected"))?,
         };
 
@@ -574,7 +574,7 @@ impl ProjectCreateCommand {
                     let templates = list_subdirectories(&templates_dir)?;
                     if !templates.is_empty() {
                         eprintln!("Select a project template (Esc to skip):");
-                        app.interactive().interactive_search_items(&templates)?
+                        app.interactive().interactive_search_items(&templates, "")?
                     } else {
                         None
                     }

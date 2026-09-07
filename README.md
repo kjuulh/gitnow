@@ -31,8 +31,9 @@ gitnow
 
 # Or install gitnow scripts (in your .bashrc, .zshrc) this will use native shell commands to move you around
 eval "$(gitnow init zsh)"
-git-now # Long
-gn # Short alias
+git-now mire api # Jump to the best match (long form)
+gn mire api      # Jump to the best match (short alias)
+gi mire api      # Interactively choose from the filtered matches
 ```
 
 ## Reasoning
@@ -53,6 +54,17 @@ With gitnow
 1. `git now`
 2. Enter parts of the project name and press enter
 3. Your project is automatically downloaded if it doesn't exist in an opinionated path dir, and move you there.
+
+Queries accept multiple space-separated terms; every term must match. The
+fzf-style operators `'exact`, `^prefix`, `suffix$`, and `!exclude` are also
+supported. Quote operators that your shell would otherwise interpret:
+
+```bash
+gitnow mire api
+gitnow "'gitnow" "'kjuulh"
+gitnow gitnow '!github.com'
+gitnow --interactive mire
+```
 
 ## Configuration
 
@@ -198,7 +210,9 @@ The recommended way to use gitnow is with shell integration, which uses a **choo
 
 ```bash
 eval "$(gitnow init zsh)"
-git-now    # or gn
+git-now mire    # best match
+gn mire         # short alias for git-now
+gi mire         # interactive picker pre-filtered with "mire"
 ```
 
 When you run `git-now`, the shell wrapper:
@@ -211,7 +225,8 @@ When you run `git-now`, the shell wrapper:
 This works uniformly for all subcommands:
 
 ```bash
-git-now                      # pick a repo and cd there
+git-now mire api             # jump directly to the best multi-term match
+gi mire api                  # choose interactively from those matches
 git-now project              # pick a project and cd there
 git-now project create foo   # create project and cd there
 git-now project delete foo   # deletes project, no cd
