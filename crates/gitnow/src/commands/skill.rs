@@ -253,6 +253,24 @@ Config file location (in priority order):
 2. `GITNOW_CONFIG` environment variable
 3. `~/.config/gitnow/gitnow.toml`
 
+### Zero-config first run
+
+No configuration is required. When **no providers are configured at all**
+(missing config file, empty file, or only `[settings]`), gitnow synthesises an
+in-memory github.com provider for your own account:
+
+- Token: `gh auth token`, else `GH_TOKEN`, else `GITHUB_TOKEN`, else nothing.
+- Login: `gh api user --jq .login`, seeding `current_user` and `users`.
+- Host: github.com.
+
+Configuring *any* provider (GitHub or Gitea) disables this entirely — explicit
+config always wins, and `gh` is never invoked. Customising `[settings]` alone
+does not disable it; the trigger is about providers.
+
+The synthesised provider is never written to disk and the token is never
+persisted or logged. With no `gh` and no token variable, gitnow prints a hint
+to stderr and continues — it never prompts, so `--no-shell` automation is safe.
+
 ### Config file format (TOML)
 
 ```toml
@@ -316,6 +334,11 @@ Multiple provider entries are supported — gitnow aggregates repositories from 
 ## Typical workflows
 
 ### First-time setup
+With the GitHub CLI already authenticated (`gh auth login`), no setup is
+needed — run `gitnow` and your own GitHub repositories are indexed.
+
+To go beyond your own GitHub (other users, organisations, Gitea, GitHub
+Enterprise):
 1. Create `~/.config/gitnow/gitnow.toml` with at least one provider
 2. Run `gitnow update` to populate the cache
 3. Run `gitnow` to interactively search and clone a repo

@@ -89,7 +89,7 @@ mod implementation {
             let github_provider = self.app.github_provider();
 
             let mut repositories = Vec::new();
-            for github in self.app.config.providers.github.iter() {
+            for github in self.app.github_providers().await.iter() {
                 if let Some(_user) = &github.current_user {
                     let mut repos = github_provider
                         .list_repositories_for_current_user(
