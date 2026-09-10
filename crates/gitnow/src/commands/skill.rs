@@ -24,6 +24,7 @@ management, and scratch-pad project workspaces.
 gitnow [OPTIONS] [QUERY]...          # search/clone/open a repository
 gitnow update                        # refresh the local repository cache
 gitnow clone --search <REGEX>        # batch-clone repositories matching a pattern
+gitnow list [QUERY]... [OPTIONS]     # print known repositories (non-interactive)
 gitnow worktree [SEARCH] [OPTIONS]   # create and enter a git worktree for a branch
 gitnow project [SEARCH] [OPTIONS]    # open an existing scratch-pad project
 gitnow project create [NAME]         # create a new multi-repo project
@@ -88,6 +89,41 @@ Clones up to 5 repositories concurrently. Skips repos that already exist locally
 | Flag               | Description                                |
 |--------------------|--------------------------------------------|
 | `--search <REGEX>` | Regular expression to match repository paths |
+
+---
+
+### `gitnow list [QUERY]... [OPTIONS]`
+
+Print the known repository set to stdout and exit. This is the non-interactive
+counterpart to the default command: it never opens a picker, never clones, and
+never spawns a shell, so it is the command to use from a script or to feed
+another program's completion UI.
+
+Repositories are the unprefixed noun (`gitnow <query>` searches them), which is
+why this is `gitnow list` rather than `gitnow repos list`. `gitnow project list`
+remains the projects-scoped sibling.
+
+Default output is one relative path per line (`<provider>/<owner>/<name>`) — the
+same label the picker matches on, so it pipes back into `gitnow` or into fzf.
+
+**Flags:**
+| Flag          | Description                                                    |
+|---------------|----------------------------------------------------------------|
+| `[QUERY]...`  | Same fzf-style matching as the default command; all terms must match |
+| `--json`      | Output as JSON, incl. `ssh_url`, `path` and `cloned`            |
+| `--cloned`    | Only repositories that already exist on disk                    |
+| `--no-cache`  | Skip the local cache; fetch fresh and rewrite it                |
+
+The JSON form carries `path` (where the repo lives once cloned, whether or not
+it is yet) alongside `cloned`, so a consumer can tell "available to clone" from
+"already on disk" without a second stat.
+
+```
+gitnow list                          # every known repository
+gitnow list understory-io            # filtered
+gitnow list --cloned                 # only what is on disk
+gitnow list --json | jq -r '.[].ssh_url'
+```
 
 ---
 

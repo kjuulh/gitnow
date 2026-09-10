@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use anyhow::Context;
 use clap::{Parser, Subcommand};
 use commands::{
-    clone::CloneCommand, project::ProjectCommand, root::RootCommand, shell::Shell,
-    skill::SkillCommand, update::Update, worktree::WorktreeCommand,
+    clone::CloneCommand, list::ListCommand, project::ProjectCommand, root::RootCommand,
+    shell::Shell, skill::SkillCommand, update::Update, worktree::WorktreeCommand,
 };
 use config::Config;
 use tracing::level_filters::LevelFilter;
@@ -79,6 +79,8 @@ enum Commands {
     Init(Shell),
     Update(Update),
     Clone(CloneCommand),
+    /// List known repositories without opening one
+    List(ListCommand),
     Worktree(WorktreeCommand),
     /// Manage scratch-pad projects with multiple repositories
     Project(ProjectCommand),
@@ -139,6 +141,9 @@ async fn main() -> anyhow::Result<()> {
             Commands::Clone(mut clone) => {
                 clone.execute(app).await?;
             }
+            Commands::List(list) => {
+                list.execute(app).await?;
+            }
             Commands::Worktree(mut wt) => {
                 wt.execute(app, &chooser).await?;
             }
@@ -180,6 +185,16 @@ mod tests {
 
         assert_eq!(command.search, ["mire", "api"]);
         assert!(!command.interactive);
+    }
+
+    #[test]
+    fn list_does_not_swallow_the_root_query() {
+        // `list` is a subcommand, so its terms must land on it and not on the root
+        // command's free-form query, which would silently open a picker instead.
+        let command = Command::try_parse_from(["gitnow", "list", "--json", "mire", "api"]).unwrap();
+
+        assert!(command.search.is_empty());
+        assert!(matches!(command.command, Some(super::Commands::List(_))));
     }
 
     #[test]
