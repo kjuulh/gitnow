@@ -6,7 +6,7 @@
 /// Everything else that reads the repository set either needs a TTY (the picker) or collapses
 /// it to a single top match (the root command's fuzzy path), which leaves no way to enumerate
 /// from a script or another program's completion UI. This is that way.
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use crate::{
     app::App, cache::load_repositories, commands::root::RepositoryMatcher,
@@ -44,7 +44,7 @@ impl ListCommand {
             None => repositories,
         };
 
-        let root = projects_dir(app);
+        let root = &app.config.settings.projects.directory;
         let entries: Vec<(Repository, PathBuf, bool)> = matched
             .into_iter()
             .map(|repo| {
@@ -81,16 +81,5 @@ impl ListCommand {
         }
 
         Ok(())
-    }
-}
-
-/// `settings.projects.directory` is not tilde-expanded anywhere in the config layer, so a
-/// configured `~/git` arrives here literally. Reporting that verbatim would hand out a path
-/// that can never exist and a `cloned` that is always false.
-fn projects_dir(app: &'static App) -> PathBuf {
-    let dir: &Path = &app.config.settings.projects.directory;
-    match dir.strip_prefix("~") {
-        Ok(rest) => dirs::home_dir().unwrap_or_default().join(rest),
-        Err(_) => dir.to_path_buf(),
     }
 }

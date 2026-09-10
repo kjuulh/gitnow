@@ -8,6 +8,7 @@ use crate::{
     app::App,
     cache::load_repositories,
     chooser::Chooser,
+    config::expand_tilde,
     custom_command::CustomCommandApp,
     fuzzy_matcher::FuzzyMatcherApp,
     interactive::{InteractiveApp, Searchable},
@@ -181,11 +182,7 @@ fn parse_cutoff_date(value: &str) -> Result<chrono::DateTime<Utc>, String> {
 /// Falls back to `default` if the config value is `None`.
 fn resolve_dir(configured: Option<&str>, default: &str) -> PathBuf {
     if let Some(dir) = configured {
-        let path = PathBuf::from(dir);
-        if let Ok(stripped) = path.strip_prefix("~") {
-            return dirs::home_dir().unwrap_or_default().join(stripped);
-        }
-        return path;
+        return expand_tilde(PathBuf::from(dir));
     }
     dirs::home_dir().unwrap_or_default().join(default)
 }
