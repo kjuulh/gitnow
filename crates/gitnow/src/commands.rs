@@ -1,3 +1,4 @@
+pub mod list;
 pub mod project;
 pub mod root;
 pub mod shell;

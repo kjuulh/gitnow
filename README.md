@@ -138,6 +138,25 @@ list_branches_command = "jj -R {{ bare_path }} bookmark list -T 'name ++ \"\\n\"
 
 Available template variables for worktree commands: `bare_path`, `worktree_path`, `branch`, `ssh_url`.
 
+### Listing repositories
+
+`gitnow list` prints the known repository set and exits — no picker, no clone, no
+sub-shell. Use it from scripts, or to drive completion in another tool.
+
+```bash
+# Every known repository, one relative path per line
+gitnow list
+
+# Filtered with the same fzf-style query as the default command
+gitnow list understory-io
+
+# Only the ones already cloned
+gitnow list --cloned
+
+# JSON, with ssh_url / path / cloned per repo
+gitnow list --json | jq -r '.[] | select(.cloned == false) | .ssh_url'
+```
+
 ### Projects
 
 gitnow supports scratch-pad projects that group multiple repositories into a single directory. This is useful when working on features that span several repos.
