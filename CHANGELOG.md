@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `gitnow list` prints the known repository set non-interactively, with `--json`, `--cloned` and query filtering
 
+### Fixed
+- expand `~` in `settings.projects.directory` and `settings.cache.location`; both were used verbatim, so a `~/git` config cloned into a literal `./~/git` relative to the current directory
+
 ## [0.6.0] - 2026-09-07
 
 ### Added

@@ -3,6 +3,19 @@ use std::path::{Path, PathBuf};
 use anyhow::Context;
 use serde::{Deserialize, Serialize};
 
+/// Expand a leading `~` to the home directory.
+///
+/// `toml` deserializes a path into a `PathBuf` verbatim, and nothing downstream resolves it:
+/// a configured `~/git` stays a *relative* path whose first component is literally `~`, so it
+/// resolves against the current directory instead of $HOME. Only `~` and `~/...` are handled,
+/// not `~user/...`, which no shell-less consumer of this config can resolve anyway.
+pub(crate) fn expand_tilde(path: PathBuf) -> PathBuf {
+    match path.strip_prefix("~") {
+        Ok(rest) => dirs::home_dir().unwrap_or_default().join(rest),
+        Err(_) => path,
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Config {
     #[serde(default)]
@@ -93,8 +106,14 @@ pub struct Projects {
     pub directory: ProjectLocation,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct ProjectLocation(PathBuf);
+
+impl<'de> Deserialize<'de> for ProjectLocation {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        Ok(Self(expand_tilde(PathBuf::deserialize(deserializer)?)))
+    }
+}
 
 impl From<PathBuf> for ProjectLocation {
     fn from(value: PathBuf) -> Self {
@@ -133,8 +152,14 @@ pub struct Cache {
     pub duration: CacheDuration,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct CacheLocation(PathBuf);
+
+impl<'de> Deserialize<'de> for CacheLocation {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        Ok(Self(expand_tilde(PathBuf::deserialize(deserializer)?)))
+    }
+}
 
 impl From<PathBuf> for CacheLocation {
     fn from(value: PathBuf) -> Self {
@@ -300,6 +325,44 @@ impl Config {
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn expands_tilde_in_configured_locations() -> anyhow::Result<()> {
+        let home = dirs::home_dir().unwrap_or_default();
+        let config = Config::from_string(
+            r#"
+              [settings]
+              projects = { directory = "~/git" }
+
+              [settings.cache]
+              location = "~/.cache/gitnow"
+            "#,
+        )?;
+
+        // A literal `~` first component would resolve against the current directory, so
+        // these paths must come out absolute or the clone lands in `./~/git/...`.
+        assert_eq!(*config.settings.projects.directory, home.join("git"));
+        assert_eq!(
+            PathBuf::from(config.settings.cache.location.clone()),
+            home.join(".cache/gitnow")
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn leaves_absolute_locations_alone() -> anyhow::Result<()> {
+        let config = Config::from_string(
+            r#"
+              [settings]
+              projects = { directory = "/srv/git" }
+            "#,
+        )?;
+
+        assert_eq!(*config.settings.projects.directory, PathBuf::from("/srv/git"));
+
+        Ok(())
+    }
 
     #[test]
     fn test_can_parse_config() -> anyhow::Result<()> {
