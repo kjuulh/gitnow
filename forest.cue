@@ -40,7 +40,7 @@ project: sdk.#ForestProject & {
 
 forest: component: sdk.#ForestComponent & {
 	name:    project.name
-	version: "0.5.1"
+	version: "0.7.0"
 
 	// Shell integration, declared rather than pasted into every user's rc file
 	// (forest DATA-588). Forest runs `gitnow init zsh` once when the binary is
@@ -62,29 +62,29 @@ forest: component: sdk.#ForestComponent & {
 			{
 				os:                "macos"
 				arch:              "arm64"
-				url:               "https://git.kjuulh.io/kjuulh/gitnow/releases/download/v0.5.1/gitnow_0.5.1_darwin_arm64.tar.gz"
+				url:               "https://git.kjuulh.io/kjuulh/gitnow/releases/download/v0.7.0/gitnow_0.7.0_darwin_arm64.tar.gz"
 				archive:           "tar.gz"
 				binary_in_archive: "gitnow"
-				sha256:            "b07c09038ed568f949fb3675f332556dbf64cf4a55e37c92b3476b64ebcb3fed"
-				archive_sha256:    "f0f8125ebcbfd1992ef8afd204f14fc143d1ffdc6076b7e43e71eda8de700cdf"
+				sha256:            "cba04b3d096ad81055a4bc5a91dcbc5a82465ec77b2163bf1835ac7b95072c7f"
+				archive_sha256:    "7d9db7af9454abaccf4dcefc7ce10561d2c8821c657c694c4267957b0794f2aa"
 			},
 			{
 				os:                "linux"
 				arch:              "amd64"
-				url:               "https://git.kjuulh.io/kjuulh/gitnow/releases/download/v0.5.1/gitnow_0.5.1_linux_amd64.tar.gz"
+				url:               "https://git.kjuulh.io/kjuulh/gitnow/releases/download/v0.7.0/gitnow_0.7.0_linux_amd64.tar.gz"
 				archive:           "tar.gz"
 				binary_in_archive: "gitnow"
-				sha256:            "940398796dda34a74e4e9c464b90fc86a9f22a57e3e908a09a88a4e7f0f008fe"
-				archive_sha256:    "1d84586bc663c91e00c411165b6f8fe520588209735943e9364edae23703a3fb"
+				sha256:            "993663d3d9cc2f0da6de72ce4ac23ac68681c1b480c0283aaf3eeab32a44a653"
+				archive_sha256:    "03dc75c7197dc5c356bae97db93791681284167811a1e995592a3f903cbc3acd"
 			},
 			{
 				os:                "linux"
 				arch:              "arm64"
-				url:               "https://git.kjuulh.io/kjuulh/gitnow/releases/download/v0.5.1/gitnow_0.5.1_linux_arm64.tar.gz"
+				url:               "https://git.kjuulh.io/kjuulh/gitnow/releases/download/v0.7.0/gitnow_0.7.0_linux_arm64.tar.gz"
 				archive:           "tar.gz"
 				binary_in_archive: "gitnow"
-				sha256:            "e82bf0706d0452d632f173298b51e4e842ccb7a9e4bc4ab7080007b6edbcfa6c"
-				archive_sha256:    "b9d0423427b953995209978ad2f11f6c2dd86613fbb951eaae00743ebeba322f"
+				sha256:            "698cd7e455c37283bb53b8fc60306010950c58b21464412eb43aa1f4ff0a1ecd"
+				archive_sha256:    "81e36b1e65b1171cdd730a5fad9710de4c3d67897a772c4da7131e1a2406199c"
 			},
 		]
 	}
