@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-09-10
+
 ### Added
 - `gitnow list` prints the known repository set non-interactively, with `--json`, `--cloned` and query filtering
 - work with zero configuration on a fresh install: when no providers are configured, gitnow sniffs `gh auth token` (falling back to `GH_TOKEN`/`GITHUB_TOKEN`) and the `gh` login to index your own GitHub. Configuring any provider disables the sniff, and the token is never persisted to the config file nor printed
