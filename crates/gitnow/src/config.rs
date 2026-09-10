@@ -231,6 +231,19 @@ pub struct Providers {
     pub gitea: Vec<Gitea>,
 }
 
+impl Providers {
+    /// True when no provider at all is configured — the fresh-install case
+    /// where the config file is absent, empty, or declares only `[settings]`.
+    ///
+    /// This is the sole trigger for the zero-config default provider (see
+    /// [`crate::zero_config`]).  It looks at *providers* only: customising
+    /// settings does not turn the default off, and configuring any provider —
+    /// GitHub or Gitea — does.
+    pub fn is_empty(&self) -> bool {
+        self.github.is_empty() && self.gitea.is_empty()
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct GitHub {
     #[serde(default)]
@@ -264,6 +277,12 @@ macro_rules! string_newtype {
                 value.0.as_str()
             }
         }
+
+        impl From<String> for $name {
+            fn from(value: String) -> Self {
+                Self(value)
+            }
+        }
     };
 }
 
@@ -286,19 +305,37 @@ pub struct Gitea {
     pub organisations: Vec<GiteaOrganisation>,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Clone)]
 #[serde(untagged)]
 pub enum GiteaAccessToken {
     Direct(String),
     Env { env: String },
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Clone)]
 #[serde(untagged)]
 pub enum GitHubAccessToken {
     Direct(String),
     Env { env: String },
 }
+
+/// Redacts the literal token, so it cannot reach a log line, a panic message,
+/// or `--verbose` output by way of a `Debug` impl further up the tree.
+macro_rules! redacted_debug {
+    ($name:ident) => {
+        impl std::fmt::Debug for $name {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                match self {
+                    Self::Direct(_) => f.write_str("Direct(<redacted>)"),
+                    Self::Env { env } => f.debug_struct("Env").field("env", env).finish(),
+                }
+            }
+        }
+    };
+}
+
+redacted_debug!(GiteaAccessToken);
+redacted_debug!(GitHubAccessToken);
 
 string_newtype!(GiteaUser);
 string_newtype!(GiteaOrganisation);

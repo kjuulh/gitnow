@@ -70,6 +70,44 @@ gitnow --interactive mire
 
 Configuration lives at `~/.config/gitnow/gitnow.toml` (override with `$GITNOW_CONFIG`).
 
+### Zero-config first run
+
+A fresh install needs no configuration. When gitnow finds **no providers
+configured at all** — no config file, an empty one, or one with only
+`[settings]` — it sniffs your environment for GitHub credentials and indexes
+**your own GitHub** with them:
+
+| Step | Source | Fallback |
+| ---- | ------ | -------- |
+| Token | `gh auth token` | `GH_TOKEN`, then `GITHUB_TOKEN` |
+| Login | `gh api user --jq .login` | none needed — the token already scopes `/user/repos` |
+| Host | `github.com` | — |
+
+So on a machine where you have already run `gh auth login`, this just works:
+
+```bash
+gitnow            # search, clone and enter one of your repositories
+```
+
+Notes:
+
+- **Explicit config always wins.** Configuring *any* provider — GitHub or
+  Gitea — turns the sniff off entirely; your providers are used exactly as
+  written, and gitnow never shells out to `gh`. Customising `[settings]` alone
+  does *not* turn it off, since the trigger is about providers.
+- **The token is never persisted.** The synthesised provider only ever exists
+  in memory: nothing is written to your config file, and the token is
+  re-resolved on each run. Environment tokens are referenced by variable name
+  rather than by value, and tokens are redacted from all debug output.
+- **`gh` is optional.** It is a best-effort shell-out with a timeout, run
+  lazily (only for commands that list repositories, and at most once per run).
+  If neither `gh` nor a token variable is available, gitnow prints a one-line
+  hint and carries on — it never prompts, so automation is unaffected.
+- Organisations are not seeded: `/user/repos` already covers the organisation
+  repositories your token can see.
+
+Writing a real config later needs no migration — it simply takes over.
+
 ### Custom clone command
 
 By default gitnow uses `git clone`. You can override this with any command using a [minijinja](https://docs.rs/minijinja) template:

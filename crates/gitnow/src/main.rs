@@ -27,6 +27,7 @@ mod projects_list;
 mod shell;
 mod template_command;
 mod worktree;
+mod zero_config;
 
 #[derive(Parser)]
 #[command(
